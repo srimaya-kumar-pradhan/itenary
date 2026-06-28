@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description"
+        content="AI-powered travel planner for India. Generate personalized itineraries with budget optimization, hotel recommendations, and hidden gems using RAG and Gemini AI.">
+    <title>Shubham Tours and Travels</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Outfit:wght@400;500;600;700;800&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="css/style.css">
+</head>
+
+<body>
+    <!-- Animated background particles -->
+    <div class="bg-particles" aria-hidden="true">
+        <div class="particle"></div>
+        <div class="particle"></div>
+        <div class="particle"></div>
+        <div class="particle"></div>
+        <div class="particle"></div>
+        <div class="particle"></div>
+    </div>
+
+    <!-- Header -->
+    <header class="header" id="header">
+        <div class="header-content">
+            <div class="logo">
+                <span class="logo-icon">✈️</span>
+                <h1 class="logo-text">Shubham Sir's Tours and Travels </h1>
+            </div>
+            <p class="header-tagline">Connecting satellite </p>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="main-container">
+        <!-- Trip Planning Form -->
+        <section class="form-section" id="form-section">
+            <div class="section-header">
+                <h2>Plan Your Dream Trip</h2>
+                <p>Fill in your preferences and let AI craft the perfect itinerary</p>
+            </div>
+
+            <form id="trip-form" class="trip-form" novalidate>
+                <!-- Destination -->
+                <div class="form-group">
+                    <label for="destination" class="form-label">
+                        <span class="label-icon">📍</span>
+                        Destination
+                    </label>
+                    <select id="destination" name="destination" class="form-select" required>
+                        <option value="">Choose a destination...</option>
+                        <option value="delhi">Delhi — Capital Heritage</option>
+                        <option value="mumbai">Mumbai — City of Dreams</option>
+                        <option value="jaipur">Jaipur — Pink City Royalty</option>
+                        <option value="goa">Goa — Beach Paradise</option>
+                        <option value="bangalore">Bangalore — Garden City</option>
+                        <option value="kolkata">Kolkata — City of Joy</option>
+                        <option value="hyderabad">Hyderabad — City of Pearls</option>
+                        <option value="agra">Agra — Taj Mahal City</option>
+                        <option value="varanasi">Varanasi — Spiritual Capital</option>
+                        <option value="kerala">Kerala — God's Own Country</option>
+                        <option value="udaipur">Udaipur — City of Lakes</option>
+                        <option value="shimla">Shimla — Queen of Hills</option>
+                        <option value="manali">Manali — Mountain Haven</option>
+                        <option value="rishikesh">Rishikesh — Yoga Capital</option>
+                        <option value="pune">Pune — Oxford of the East</option>
+                        <option value="mysore">Mysore — Palace City</option>
+                        <option value="ooty">Ooty — Nilgiri Queen</option>
+                        <option value="darjeeling">Darjeeling — Tea Capital</option>
+                        <option value="chandigarh">Chandigarh — City Beautiful</option>
+                        <option value="rajasthan">Rajasthan — Land of Kings</option>
+                    </select>
+                </div>
+
+                <!-- Date Range -->
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="startDate" class="form-label">
+                            <span class="label-icon">📅</span>
+                            Start Date
+                        </label>
+                        <input type="date" id="startDate" name="startDate" class="form-input" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="endDate" class="form-label">
+                            <span class="label-icon">📅</span>
+                            End Date
+                        </label>
+                        <input type="date" id="endDate" name="endDate" class="form-input" required>
+                    </div>
+                </div>
+
+                <!-- Budget & Travelers -->
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="budget" class="form-label">
+                            <span class="label-icon">💰</span>
+                            Total Budget (₹)
+                        </label>
+                        <input type="number" id="budget" name="budget" class="form-input" min="1000" max="500000"
+                            step="500" placeholder="e.g. 15000" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="travelers" class="form-label">
+                            <span class="label-icon">👥</span>
+                            Travelers
+                        </label>
+                        <input type="number" id="travelers" name="travelers" class="form-input" min="1" max="20"
+                            value="1" required>
+                    </div>
+                </div>
+
+                <!-- Preferences -->
+                <div class="form-group">
+                    <label class="form-label">
+                        <span class="label-icon">🎯</span>
+                        Travel Preferences
+                    </label>
+                    <div class="checkbox-grid" id="preferences-grid">
+                        <label class="checkbox-card">
+                            <input type="checkbox" name="preferences" value="Historical" checked>
+                            <span class="checkbox-content">
+                                <span class="checkbox-icon">🏛️</span>
+                                <span class="checkbox-text">Historical</span>
+                            </span>
+                        </label>
+                        <label class="checkbox-card">
+                            <input type="checkbox" name="preferences" value="Adventure">
+                            <span class="checkbox-content">
+                                <span class="checkbox-icon">🏔️</span>
+                                <span class="checkbox-text">Adventure</span>
+                            </span>
+                        </label>
+                        <label class="checkbox-card">
+                            <input type="checkbox" name="preferences" value="Beach">
+                            <span class="checkbox-content">
+                                <span class="checkbox-icon">🏖️</span>
+                                <span class="checkbox-text">Beach</span>
+                            </span>
+                        </label>
+                        <label class="checkbox-card">
+                            <input type="checkbox" name="preferences" value="Budget" checked>
+                            <span class="checkbox-content">
+                                <span class="checkbox-icon">💸</span>
+                                <span class="checkbox-text">Budget</span>
+                            </span>
+                        </label>
+                        <label class="checkbox-card">
+                            <input type="checkbox" name="preferences" value="Luxury">
+                            <span class="checkbox-content">
+                                <span class="checkbox-icon">👑</span>
+                                <span class="checkbox-text">Luxury</span>
+                            </span>
+                        </label>
+                        <label class="checkbox-card">
+                            <input type="checkbox" name="preferences" value="Cultural">
+                            <span class="checkbox-content">
+                                <span class="checkbox-icon">🎭</span>
+                                <span class="checkbox-text">Cultural</span>
+                            </span>
+                        </label>
+                        <label class="checkbox-card">
+                            <input type="checkbox" name="preferences" value="Spiritual">
+                            <span class="checkbox-content">
+                                <span class="checkbox-icon">🕉️</span>
+                                <span class="checkbox-text">Spiritual</span>
+                            </span>
+                        </label>
+                        <label class="checkbox-card">
+                            <input type="checkbox" name="preferences" value="Food">
+                            <span class="checkbox-content">
+                                <span class="checkbox-icon">🍽️</span>
+                                <span class="checkbox-text">Food</span>
+                            </span>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Accommodation -->
+                <div class="form-group">
+                    <label for="accommodation" class="form-label">
+                        <span class="label-icon">🏨</span>
+                        Accommodation Preference
+                    </label>
+                    <select id="accommodation" name="accommodation" class="form-select">
+                        <option value="budget">Budget — Hostels & Guesthouses</option>
+                        <option value="mid-range" selected>Mid-Range — 3-4 Star Hotels</option>
+                        <option value="luxury">Luxury — 5 Star & Heritage</option>
+                    </select>
+                </div>
+
+                <!-- Submit -->
+                <button type="submit" id="submit-btn" class="submit-btn">
+                    <span class="btn-text">✨ Generate My Itinerary</span>
+                    <span class="btn-loader" style="display:none;">
+                        <span class="spinner"></span>
+                        Crafting your perfect trip...
+                    </span>
+                </button>
+            </form>
+        </section>
+
+        <!-- Loading State -->
+        <section class="loading-section" id="loading-section" style="display:none;">
+            <div class="loading-card">
+                <div class="loading-animation">
+                    <div class="plane-path">
+                        <span class="flying-plane">✈️</span>
+                    </div>
+                </div>
+                <h3>AI is planning your trip...</h3>
+                <div class="loading-steps" id="loading-steps">
+                    <div class="loading-step active" data-step="1">
+                        <span class="step-icon">🔍</span>
+                        Searching travel database...
+                    </div>
+                    <div class="loading-step" data-step="2">
+                        <span class="step-icon">🏨</span>
+                        Finding best hotels...
+                    </div>
+                    <div class="loading-step" data-step="3">
+                        <span class="step-icon">💰</span>
+                        Optimizing your budget...
+                    </div>
+                    <div class="loading-step" data-step="4">
+                        <span class="step-icon">🤖</span>
+                        Generating personalized itinerary...
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Error State -->
+        <section class="error-section" id="error-section" style="display:none;">
+            <div class="error-card">
+                <span class="error-icon">⚠️</span>
+                <h3>Oops! Something went wrong</h3>
+                <p id="error-message">Unable to generate itinerary. Please try again.</p>
+                <button class="retry-btn" onclick="resetForm()">🔄 Try Again</button>
+            </div>
+        </section>
+
+        <!-- Results Section -->
+        <section class="results-section" id="results-section" style="display:none;">
+            <!-- Trip Summary Cards -->
+            <div class="results-header">
+                <h2 id="results-title">Your Itinerary</h2>
+                <button class="new-trip-btn" onclick="resetForm()">🔄 Plan New Trip</button>
+            </div>
+
+            <div class="summary-grid" id="summary-grid">
+                <!-- Filled by JS -->
+            </div>
+
+            <!-- Hotel Recommendation -->
+            <div class="result-card hotel-card" id="hotel-card">
+                <h3 class="card-title">🏨 Recommended Stay</h3>
+                <div id="hotel-details"></div>
+            </div>
+
+            <!-- Daily Plans -->
+            <div class="daily-plans-container" id="daily-plans">
+                <!-- Filled by JS -->
+            </div>
+
+            <!-- Budget Breakdown -->
+            <div class="result-card budget-card" id="budget-card">
+                <h3 class="card-title">💰 Budget Breakdown</h3>
+                <div id="budget-breakdown"></div>
+            </div>
+
+            <!-- Hidden Gems -->
+            <div class="result-card gems-card" id="gems-card">
+                <h3 class="card-title">💎 Hidden Gems</h3>
+                <div id="hidden-gems"></div>
+            </div>
+
+            <!-- Travel Tips -->
+            <div class="result-card tips-card" id="tips-card">
+                <h3 class="card-title">💡 Travel Tips</h3>
+                <ul id="travel-tips"></ul>
+            </div>
+
+            <!-- Emergency Contacts -->
+            <div class="result-card emergency-card" id="emergency-card">
+                <h3 class="card-title">🚨 Emergency Contacts</h3>
+                <div id="emergency-contacts"></div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <p>Built with ❤️ using RAG + Gemini AI | © 2026 AI Travel Planner</p>
+    </footer>
+
+    <script src="js/script.js"></script>
+</body>
+
+</html>
