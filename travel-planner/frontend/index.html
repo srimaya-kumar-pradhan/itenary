@@ -12,6 +12,7 @@
     <link
         href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Outfit:wght@400;500;600;700;800&family=Courier+Prime:wght@400;700&display=swap"
         rel="stylesheet">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
     <link rel="stylesheet" href="css/style.css">
 </head>
 
@@ -57,7 +58,7 @@
 
     <!-- ===================== TASK 2: Torch Dark/Light Mode Toggle ===================== -->
     <label class="torch-container" id="torch-toggle-label">
-        <div class="simple-text">Theme</div>
+        <div class="simple-text" data-i18n="nav.theme">Theme</div>
         <input checked="checked" type="checkbox" id="themeToggle" />
         <div class="checkmark"></div>
         <div class="torch">
@@ -114,9 +115,9 @@
         <div class="header-content">
             <div class="logo">
                 <span class="logo-icon">✈️</span>
-                <h1 class="logo-text">Shubham Sir's Tours and Travels </h1>
+                <h1 class="logo-text" data-i18n="header.title">Shubham Sir's Tours and Travels </h1>
             </div>
-            <p class="header-tagline">Connecting satellite </p>
+            <p class="header-tagline" data-i18n="header.tagline">Connecting satellite </p>
         </div>
     </header>
 
@@ -125,8 +126,8 @@
         <!-- Trip Planning Form -->
         <section class="form-section" id="form-section">
             <div class="section-header">
-                <h2>Plan Your Dream Trip</h2>
-                <p>Fill in your preferences and let AI craft the perfect itinerary</p>
+                <h2 data-i18n="form.title">Plan Your Dream Trip</h2>
+                <p data-i18n="form.subtitle">Fill in your preferences and let AI craft the perfect itinerary</p>
             </div>
 
             <form id="trip-form" class="trip-form" novalidate>
@@ -134,30 +135,30 @@
                 <div class="form-group">
                     <label for="destination" class="form-label">
                         <span class="label-icon">📍</span>
-                        Destination
+                        <span data-i18n="form.destination">Destination</span>
                     </label>
                     <select id="destination" name="destination" class="form-select" required>
-                        <option value="">Choose a destination...</option>
-                        <option value="delhi">Delhi — Capital Heritage</option>
-                        <option value="mumbai">Mumbai — City of Dreams</option>
-                        <option value="jaipur">Jaipur — Pink City Royalty</option>
-                        <option value="goa">Goa — Beach Paradise</option>
-                        <option value="bangalore">Bangalore — Garden City</option>
-                        <option value="kolkata">Kolkata — City of Joy</option>
-                        <option value="hyderabad">Hyderabad — City of Pearls</option>
-                        <option value="agra">Agra — Taj Mahal City</option>
-                        <option value="varanasi">Varanasi — Spiritual Capital</option>
-                        <option value="kerala">Kerala — God's Own Country</option>
-                        <option value="udaipur">Udaipur — City of Lakes</option>
-                        <option value="shimla">Shimla — Queen of Hills</option>
-                        <option value="manali">Manali — Mountain Haven</option>
-                        <option value="rishikesh">Rishikesh — Yoga Capital</option>
-                        <option value="pune">Pune — Oxford of the East</option>
-                        <option value="mysore">Mysore — Palace City</option>
-                        <option value="ooty">Ooty — Nilgiri Queen</option>
-                        <option value="darjeeling">Darjeeling — Tea Capital</option>
-                        <option value="chandigarh">Chandigarh — City Beautiful</option>
-                        <option value="rajasthan">Rajasthan — Land of Kings</option>
+                        <option value="" data-i18n-option="form.destination.placeholder">Choose a destination...</option>
+                        <option value="delhi" data-i18n-option="form.destination.delhi">Delhi — Capital Heritage</option>
+                        <option value="mumbai" data-i18n-option="form.destination.mumbai">Mumbai — City of Dreams</option>
+                        <option value="jaipur" data-i18n-option="form.destination.jaipur">Jaipur — Pink City Royalty</option>
+                        <option value="goa" data-i18n-option="form.destination.goa">Goa — Beach Paradise</option>
+                        <option value="bangalore" data-i18n-option="form.destination.bangalore">Bangalore — Garden City</option>
+                        <option value="kolkata" data-i18n-option="form.destination.kolkata">Kolkata — City of Joy</option>
+                        <option value="hyderabad" data-i18n-option="form.destination.hyderabad">Hyderabad — City of Pearls</option>
+                        <option value="agra" data-i18n-option="form.destination.agra">Agra — Taj Mahal City</option>
+                        <option value="varanasi" data-i18n-option="form.destination.varanasi">Varanasi — Spiritual Capital</option>
+                        <option value="kerala" data-i18n-option="form.destination.kerala">Kerala — God's Own Country</option>
+                        <option value="udaipur" data-i18n-option="form.destination.udaipur">Udaipur — City of Lakes</option>
+                        <option value="shimla" data-i18n-option="form.destination.shimla">Shimla — Queen of Hills</option>
+                        <option value="manali" data-i18n-option="form.destination.manali">Manali — Mountain Haven</option>
+                        <option value="rishikesh" data-i18n-option="form.destination.rishikesh">Rishikesh — Yoga Capital</option>
+                        <option value="pune" data-i18n-option="form.destination.pune">Pune — Oxford of the East</option>
+                        <option value="mysore" data-i18n-option="form.destination.mysore">Mysore — Palace City</option>
+                        <option value="ooty" data-i18n-option="form.destination.ooty">Ooty — Nilgiri Queen</option>
+                        <option value="darjeeling" data-i18n-option="form.destination.darjeeling">Darjeeling — Tea Capital</option>
+                        <option value="chandigarh" data-i18n-option="form.destination.chandigarh">Chandigarh — City Beautiful</option>
+                        <option value="rajasthan" data-i18n-option="form.destination.rajasthan">Rajasthan — Land of Kings</option>
                     </select>
                 </div>
 
@@ -166,14 +167,14 @@
                     <div class="form-group">
                         <label for="startDate" class="form-label">
                             <span class="label-icon">📅</span>
-                            Start Date
+                            <span data-i18n="form.startDate">Start Date</span>
                         </label>
                         <input type="date" id="startDate" name="startDate" class="form-input" required>
                     </div>
                     <div class="form-group">
                         <label for="endDate" class="form-label">
                             <span class="label-icon">📅</span>
-                            End Date
+                            <span data-i18n="form.endDate">End Date</span>
                         </label>
                         <input type="date" id="endDate" name="endDate" class="form-input" required>
                     </div>
@@ -184,15 +185,15 @@
                     <div class="form-group">
                         <label for="budget" class="form-label">
                             <span class="label-icon">💰</span>
-                            Total Budget (₹)
+                            <span data-i18n="form.budget">Total Budget (₹)</span>
                         </label>
                         <input type="number" id="budget" name="budget" class="form-input" min="1000" max="500000"
-                            step="500" placeholder="e.g. 15000" required>
+                            step="500" placeholder="e.g. 15000" data-i18n-placeholder="budget.placeholder" required>
                     </div>
                     <div class="form-group">
                         <label for="travelers" class="form-label">
                             <span class="label-icon">👥</span>
-                            Travelers
+                            <span data-i18n="form.travelers">Travelers</span>
                         </label>
                         <input type="number" id="travelers" name="travelers" class="form-input" min="1" max="20"
                             value="1" required>
@@ -203,63 +204,63 @@
                 <div class="form-group">
                     <label class="form-label">
                         <span class="label-icon">🎯</span>
-                        Travel Preferences
+                        <span data-i18n="form.preferences">Travel Preferences</span>
                     </label>
                     <div class="checkbox-grid" id="preferences-grid">
                         <label class="checkbox-card">
                             <input type="checkbox" name="preferences" value="Historical" checked>
                             <span class="checkbox-content">
                                 <span class="checkbox-icon">🏛️</span>
-                                <span class="checkbox-text">Historical</span>
+                                <span class="checkbox-text" data-i18n="form.pref.historical">Historical</span>
                             </span>
                         </label>
                         <label class="checkbox-card">
                             <input type="checkbox" name="preferences" value="Adventure">
                             <span class="checkbox-content">
                                 <span class="checkbox-icon">🏔️</span>
-                                <span class="checkbox-text">Adventure</span>
+                                <span class="checkbox-text" data-i18n="form.pref.adventure">Adventure</span>
                             </span>
                         </label>
                         <label class="checkbox-card">
                             <input type="checkbox" name="preferences" value="Beach">
                             <span class="checkbox-content">
                                 <span class="checkbox-icon">🏖️</span>
-                                <span class="checkbox-text">Beach</span>
+                                <span class="checkbox-text" data-i18n="form.pref.beach">Beach</span>
                             </span>
                         </label>
                         <label class="checkbox-card">
                             <input type="checkbox" name="preferences" value="Budget" checked>
                             <span class="checkbox-content">
                                 <span class="checkbox-icon">💸</span>
-                                <span class="checkbox-text">Budget</span>
+                                <span class="checkbox-text" data-i18n="form.pref.budget">Budget</span>
                             </span>
                         </label>
                         <label class="checkbox-card">
                             <input type="checkbox" name="preferences" value="Luxury">
                             <span class="checkbox-content">
                                 <span class="checkbox-icon">👑</span>
-                                <span class="checkbox-text">Luxury</span>
+                                <span class="checkbox-text" data-i18n="form.pref.luxury">Luxury</span>
                             </span>
                         </label>
                         <label class="checkbox-card">
                             <input type="checkbox" name="preferences" value="Cultural">
                             <span class="checkbox-content">
                                 <span class="checkbox-icon">🎭</span>
-                                <span class="checkbox-text">Cultural</span>
+                                <span class="checkbox-text" data-i18n="form.pref.cultural">Cultural</span>
                             </span>
                         </label>
                         <label class="checkbox-card">
                             <input type="checkbox" name="preferences" value="Spiritual">
                             <span class="checkbox-content">
                                 <span class="checkbox-icon">🕉️</span>
-                                <span class="checkbox-text">Spiritual</span>
+                                <span class="checkbox-text" data-i18n="form.pref.spiritual">Spiritual</span>
                             </span>
                         </label>
                         <label class="checkbox-card">
                             <input type="checkbox" name="preferences" value="Food">
                             <span class="checkbox-content">
                                 <span class="checkbox-icon">🍽️</span>
-                                <span class="checkbox-text">Food</span>
+                                <span class="checkbox-text" data-i18n="form.pref.food">Food</span>
                             </span>
                         </label>
                     </div>
@@ -269,12 +270,12 @@
                 <div class="form-group">
                     <label for="accommodation" class="form-label">
                         <span class="label-icon">🏨</span>
-                        Accommodation Preference
+                        <span data-i18n="form.accommodation">Accommodation Preference</span>
                     </label>
                     <select id="accommodation" name="accommodation" class="form-select">
-                        <option value="budget">Budget — Hostels & Guesthouses</option>
-                        <option value="mid-range" selected>Mid-Range — 3-4 Star Hotels</option>
-                        <option value="luxury">Luxury — 5 Star & Heritage</option>
+                        <option value="budget" data-i18n-option="form.accom.budget">Budget — Hostels & Guesthouses</option>
+                        <option value="mid-range" selected data-i18n-option="form.accom.midrange">Mid-Range — 3-4 Star Hotels</option>
+                        <option value="luxury" data-i18n-option="form.accom.luxury">Luxury — 5 Star & Heritage</option>
                     </select>
                 </div>
 
@@ -290,10 +291,10 @@
                             </g>
                         </g>
                     </svg>
-                    <span class="btn-text">✨ Generate My Itinerary</span>
+                    <span class="btn-text" data-i18n="form.submit">✨ Generate My Itinerary</span>
                     <span class="btn-loader" style="display:none;">
                         <span class="spinner"></span>
-                        Crafting your perfect trip...
+                        <span data-i18n="form.submitting">Crafting your perfect trip...</span>
                     </span>
                 </button>
             </form>
@@ -307,23 +308,23 @@
                         <span class="flying-plane">✈️</span>
                     </div>
                 </div>
-                <h3>AI is planning your trip...</h3>
+                <h3 data-i18n="loading.title">AI is planning your trip...</h3>
                 <div class="loading-steps" id="loading-steps">
                     <div class="loading-step active" data-step="1">
                         <span class="step-icon">🔍</span>
-                        Searching travel database...
+                        <span data-i18n="loading.step1">Searching travel database...</span>
                     </div>
                     <div class="loading-step" data-step="2">
                         <span class="step-icon">🏨</span>
-                        Finding best hotels...
+                        <span data-i18n="loading.step2">Finding best hotels...</span>
                     </div>
                     <div class="loading-step" data-step="3">
                         <span class="step-icon">💰</span>
-                        Optimizing your budget...
+                        <span data-i18n="loading.step3">Optimizing your budget...</span>
                     </div>
                     <div class="loading-step" data-step="4">
                         <span class="step-icon">🤖</span>
-                        Generating personalized itinerary...
+                        <span data-i18n="loading.step4">Generating personalized itinerary...</span>
                     </div>
                 </div>
             </div>
@@ -333,9 +334,9 @@
         <section class="error-section" id="error-section" style="display:none;">
             <div class="error-card">
                 <span class="error-icon">⚠️</span>
-                <h3>Oops! Something went wrong</h3>
-                <p id="error-message">Unable to generate itinerary. Please try again.</p>
-                <button class="retry-btn" onclick="resetForm()">🔄 Try Again</button>
+                <h3 data-i18n="error.title">Oops! Something went wrong</h3>
+                <p id="error-message" data-i18n="error.default">Unable to generate itinerary. Please try again.</p>
+                <button class="retry-btn" onclick="resetForm()" data-i18n="error.retry">🔄 Try Again</button>
             </div>
         </section>
 
@@ -343,8 +344,8 @@
         <section class="results-section" id="results-section" style="display:none;">
             <!-- Trip Summary Cards -->
             <div class="results-header">
-                <h2 id="results-title">Your Itinerary</h2>
-                <button class="new-trip-btn" onclick="resetForm()">🔄 Plan New Trip</button>
+                <h2 id="results-title" data-i18n="results.defaultTitle">Your Itinerary</h2>
+                <button class="new-trip-btn" onclick="resetForm()" data-i18n="results.newTrip">🔄 Plan New Trip</button>
             </div>
 
             <div class="summary-grid" id="summary-grid">
@@ -353,36 +354,49 @@
 
             <!-- Hotel Recommendation -->
             <div class="result-card hotel-card" id="hotel-card">
-                <h3 class="card-title">🏨 Recommended Stay</h3>
+                <h3 class="card-title" data-i18n="results.hotel">🏨 Recommended Stay</h3>
                 <div id="hotel-details"></div>
             </div>
 
-            <!-- Daily Plans -->
-            <div class="daily-plans-container" id="daily-plans">
-                <!-- Filled by JS -->
+            <!-- Daily Plans & Interactive Map (Split layout on desktop, tabbed on mobile) -->
+            <div class="itinerary-split-layout">
+                <div class="itinerary-timeline-pane" id="pane-timeline">
+                    <div class="daily-plans-container" id="daily-plans">
+                        <!-- Filled by JS -->
+                    </div>
+                </div>
+                <div class="itinerary-map-pane" id="pane-map">
+                    <div class="mobile-map-toggle-bar">
+                        <button type="button" class="map-toggle-btn active" id="btn-show-timeline">📋 Timeline</button>
+                        <button type="button" class="map-toggle-btn" id="btn-show-map">🗺️ Map View</button>
+                    </div>
+                    <div id="map-container" class="map-container-wrapper">
+                        <div id="itinerary-map"></div>
+                    </div>
+                </div>
             </div>
 
             <!-- Budget Breakdown -->
             <div class="result-card budget-card" id="budget-card">
-                <h3 class="card-title">💰 Budget Breakdown</h3>
+                <h3 class="card-title" data-i18n="results.budget">💰 Budget Breakdown</h3>
                 <div id="budget-breakdown"></div>
             </div>
 
             <!-- Hidden Gems -->
             <div class="result-card gems-card" id="gems-card">
-                <h3 class="card-title">💎 Hidden Gems</h3>
+                <h3 class="card-title" data-i18n="results.gems">💎 Hidden Gems</h3>
                 <div id="hidden-gems"></div>
             </div>
 
             <!-- Travel Tips -->
             <div class="result-card tips-card" id="tips-card">
-                <h3 class="card-title">💡 Travel Tips</h3>
+                <h3 class="card-title" data-i18n="results.tips">💡 Travel Tips</h3>
                 <ul id="travel-tips"></ul>
             </div>
 
             <!-- Emergency Contacts -->
             <div class="result-card emergency-card" id="emergency-card">
-                <h3 class="card-title">🚨 Emergency Contacts</h3>
+                <h3 class="card-title" data-i18n="results.emergency">🚨 Emergency Contacts</h3>
                 <div id="emergency-contacts"></div>
             </div>
         </section>
@@ -390,8 +404,14 @@
 
     <!-- Footer -->
     <footer class="footer">
-        <p>Built with ❤️ using RAG + Gemini AI | © 2026 AI Travel Planner</p>
+        <p data-i18n="footer.text">Built with ❤️ using RAG + Gemini AI | © 2026 AI Travel Planner</p>
     </footer>
+
+    <!-- Leaflet JS Map Engine -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+    <!-- Task 4: I18n Engine -->
+    <script src="js/translations.js"></script>
+    <script src="js/i18n.js"></script>
 
     <!-- Original script — UNTOUCHED -->
     <script src="js/script.js"></script>

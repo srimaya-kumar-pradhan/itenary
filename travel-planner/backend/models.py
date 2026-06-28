@@ -8,6 +8,20 @@ from typing import List, Optional, Dict
 from datetime import date
 
 
+class TranslationRequest(BaseModel):
+    """Batch translation request for Bhashini / i18n proxy."""
+    texts: List[str] = Field(..., min_length=1, max_length=100)
+    source_lang: str = Field(default="en", max_length=5)
+    target_lang: str = Field(..., max_length=5)
+
+
+class TranslationResponse(BaseModel):
+    """Batch translation response."""
+    translations: List[str]
+    source_lang: str
+    target_lang: str
+
+
 class TripRequest(BaseModel):
     """Validated trip request input from the user."""
 

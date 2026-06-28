@@ -221,6 +221,10 @@ function renderItinerary(response) {
     // Emergency Contacts
     renderEmergencyContacts(data.emergency_contacts || {});
 
+    // Initialize Map and setup responsive mobile triggers
+    initOrUpdateMap(data, summary.destination);
+    setupMobileToggles();
+
     window.scrollTo({ top: resultsSection.offsetTop - 20, behavior: 'smooth' });
 }
 
@@ -335,8 +339,12 @@ function renderTimeSlot(period, label, slot) {
     const cost = slot.cost || slot.estimated_cost || 0;
     const description = slot.description || '';
 
+    // Extract coordinate attributes if available
+    const latAttr = (slot.coordinates && slot.coordinates.lat) ? `data-lat="${slot.coordinates.lat}"` : '';
+    const lngAttr = (slot.coordinates && slot.coordinates.lng) ? `data-lng="${slot.coordinates.lng}"` : '';
+
     return `
-        <div class="time-slot">
+        <div class="time-slot" ${latAttr} ${lngAttr}>
             <div class="slot-time-badge">
                 <span class="slot-period ${period}">${label}</span>
                 ${time ? `<span class="slot-time">${time}</span>` : ''}
@@ -484,5 +492,271 @@ function formatDate(dateStr) {
         });
     } catch {
         return dateStr;
+    }
+}
+
+// ==============================================================
+// 14. INTERACTIVE GEOMETRIC MAP INTEGRATION (LEAFLET ENGINE)
+// ==============================================================
+
+let itineraryMap = null;
+let mapMarkers = [];
+let mapRouteLine = null;
+let mapTileLayer = null;
+
+/**
+ * Wait for loading screen astronaut to fade/dismiss before initializing map
+ */
+async function initOrUpdateMap(data, destination) {
+    const loader = document.getElementById('global-loader');
+    
+    // Safety check: wait for loader display: none or opacity: 0
+    const isLoaderDismissed = () => {
+        if (!loader) return true;
+        const style = window.getComputedStyle(loader);
+        return style.display === 'none' || style.opacity === '0';
+    };
+
+    if (!isLoaderDismissed()) {
+        await new Promise(resolve => {
+            const checkInterval = setInterval(() => {
+                if (isLoaderDismissed()) {
+                    clearInterval(checkInterval);
+                    resolve();
+                }
+            }, 100);
+        });
+    }
+
+    // Initialize Mapbox/Leaflet mapping setup
+    setupItineraryMap(data, destination);
+}
+
+/**
+ * Configure Leaflet map, plot stops chronologically, draw routing lines, and center views
+ */
+function setupItineraryMap(data, destination) {
+    const mapDiv = document.getElementById('itinerary-map');
+    if (!mapDiv) return;
+
+    // 1. Initialize Map instance if not done yet
+    if (!itineraryMap) {
+        itineraryMap = L.map('itinerary-map', {
+            zoomControl: true,
+            scrollWheelZoom: false
+        });
+        
+        // Listen to global theme switch to dynamically update map tiles
+        const themeToggle = document.getElementById('themeToggle');
+        if (themeToggle) {
+            themeToggle.addEventListener('change', () => {
+                updateMapTheme();
+            });
+        }
+    }
+
+    // 2. Set/Update Map Tile Layer matching the theme (dark/light base maps)
+    updateMapTheme();
+
+    // 3. Clear existing markers and paths from previous plans
+    mapMarkers.forEach(marker => itineraryMap.removeLayer(marker));
+    mapMarkers = [];
+    if (mapRouteLine) {
+        itineraryMap.removeLayer(mapRouteLine);
+        mapRouteLine = null;
+    }
+
+    // 4. Parse coordinates from daily plans chronologically
+    const pathCoordinates = [];
+    let stopIndex = 0;
+
+    if (data.daily_plans && Array.isArray(data.daily_plans)) {
+        data.daily_plans.forEach(day => {
+            ['morning', 'afternoon', 'evening'].forEach(period => {
+                const slot = day[period];
+                if (slot && slot.coordinates && slot.coordinates.lat && slot.coordinates.lng) {
+                    const lat = slot.coordinates.lat;
+                    const lng = slot.coordinates.lng;
+                    const name = slot.activity || slot.name || "Destination Stop";
+                    const cost = slot.cost || slot.estimated_cost || 0;
+                    const time = slot.time || slot.timing || "";
+                    const periodName = period.charAt(0).toUpperCase() + period.slice(1);
+
+                    pathCoordinates.push({ lat, lng, name, periodName, time, cost });
+
+                    // Create custom geometric SVG marker (solid diamond shape with stop sequence index)
+                    const markerHtml = `
+                        <div class="custom-map-marker">
+                            <div class="marker-pin">
+                                <span>${stopIndex + 1}</span>
+                            </div>
+                        </div>
+                    `;
+                    
+                    const customIcon = L.divIcon({
+                         html: markerHtml,
+                         className: 'custom-leaflet-marker',
+                         iconSize: [30, 30],
+                         iconAnchor: [15, 15]
+                    });
+
+                    const popupContent = `
+                        <div style="font-family: var(--font-body); padding: 5px;">
+                            <strong style="color: var(--accent-primary); font-size: 13px; font-weight:700;">${name}</strong><br/>
+                            <span style="font-size: 11px; color: var(--text-muted);">${periodName} Slot ${time ? `(${time})` : ''}</span><br/>
+                            <span style="font-size: 11px; font-weight: 600; color: var(--success);">Cost: ₹${formatNumber(cost)}</span>
+                        </div>
+                    `;
+
+                    const marker = L.marker([lat, lng], { icon: customIcon })
+                        .bindPopup(popupContent)
+                        .addTo(itineraryMap);
+                    
+                    mapMarkers.push(marker);
+                    stopIndex++;
+                }
+            });
+        });
+    }
+
+    // 5. Connect chronological stops using a sleek, dashed GeoJSON-style line
+    if (pathCoordinates.length > 1) {
+        const latlngs = pathCoordinates.map(pt => [pt.lat, pt.pt_lng || pt.lng]);
+        
+        mapRouteLine = L.polyline(latlngs, {
+            color: '#7c3aed',         // Application purple accent
+            weight: 4,
+            opacity: 0.85,
+            dashArray: '6, 8',       // Sleek dashed routing look
+            lineJoin: 'round'
+        }).addTo(itineraryMap);
+
+        // 6. Smoothly pan and adjust viewport bounds to perfectly frame all nodes
+        itineraryMap.fitBounds(mapRouteLine.getBounds(), {
+            padding: [40, 40],
+            animate: true,
+            duration: 1.5
+        });
+    } else if (pathCoordinates.length === 1) {
+        itineraryMap.setView([pathCoordinates[0].lat, pathCoordinates[0].lng], 13, {
+            animate: true,
+            duration: 1.2
+        });
+    } else {
+        // Fallback: Default to city center
+        const defaultCenter = [28.6139, 77.2090]; // Delhi center coords
+        itineraryMap.setView(defaultCenter, 10);
+    }
+
+    // 7. Wire timeline cards click events to pan/fly and highlight markers
+    wireTimelineInteractions();
+}
+
+/**
+ * Update map tile layers based on day/night mode toggle
+ */
+function updateMapTheme() {
+    if (!itineraryMap) return;
+
+    const isDark = document.body.classList.contains('dark-mode');
+    
+    // CartoDB base map URLs for Light/Dark themes
+    const darkTileUrl = 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png';
+    const lightTileUrl = 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png';
+    
+    const targetUrl = isDark ? darkTileUrl : lightTileUrl;
+
+    if (mapTileLayer) {
+        itineraryMap.removeLayer(mapTileLayer);
+    }
+
+    mapTileLayer = L.tileLayer(targetUrl, {
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CartoDB</a>',
+        subdomains: 'abcd',
+        maxZoom: 20
+    }).addTo(itineraryMap);
+}
+
+/**
+ * Handle card click panning and highlight synchronization
+ */
+function wireTimelineInteractions() {
+    document.querySelectorAll('.time-slot[data-lat]').forEach(slotEl => {
+        // Remove duplicate listeners if any
+        const newSlotEl = slotEl.cloneNode(true);
+        slotEl.parentNode.replaceChild(newSlotEl, slotEl);
+        
+        newSlotEl.addEventListener('click', () => {
+            const lat = parseFloat(newSlotEl.getAttribute('data-lat'));
+            const lng = parseFloat(newSlotEl.getAttribute('data-lng'));
+
+            // Sync visual highlights in the DOM timeline
+            document.querySelectorAll('.time-slot').forEach(el => el.classList.remove('active-highlight'));
+            newSlotEl.classList.add('active-highlight');
+
+            if (itineraryMap) {
+                // Smooth fly animation to the marker location
+                itineraryMap.flyTo([lat, lng], 15, {
+                    animate: true,
+                    duration: 1.2
+                });
+
+                // Find corresponding map marker and open its descriptive popup
+                const matchMarker = mapMarkers.find(marker => {
+                    const pos = marker.getLatLng();
+                    return Math.abs(pos.lat - lat) < 0.0001 && Math.abs(pos.lng - lng) < 0.0001;
+                });
+                
+                if (matchMarker) {
+                    setTimeout(() => {
+                        matchMarker.openPopup();
+                    }, 400);
+                }
+            }
+        });
+    });
+}
+
+/**
+ * Handle mobile view switcher tabs ("Timeline" vs "Map View")
+ */
+function setupMobileToggles() {
+    const splitLayout = document.querySelector('.itinerary-split-layout');
+    const btnTimeline = document.getElementById('btn-show-timeline');
+    const btnMap = document.getElementById('btn-show-map');
+    
+    if (splitLayout && btnTimeline && btnMap) {
+        // Enforce default timeline view state
+        splitLayout.classList.add('show-timeline');
+        splitLayout.classList.remove('show-map');
+        btnTimeline.classList.add('active');
+        btnMap.classList.remove('active');
+        
+        btnTimeline.onclick = (e) => {
+            e.stopPropagation();
+            splitLayout.classList.add('show-timeline');
+            splitLayout.classList.remove('show-map');
+            btnTimeline.classList.add('active');
+            btnMap.classList.remove('active');
+        };
+        
+        btnMap.onclick = (e) => {
+            e.stopPropagation();
+            splitLayout.classList.remove('show-timeline');
+            splitLayout.classList.add('show-map');
+            btnTimeline.classList.remove('active');
+            btnMap.classList.add('active');
+            
+            // Re-calculate size dynamically to avoid Leaflet rendering grey squares in hidden containers
+            if (itineraryMap) {
+                setTimeout(() => {
+                    itineraryMap.invalidateSize();
+                    // Fit bounds to make sure the route fits perfectly on load
+                    if (mapRouteLine) {
+                        itineraryMap.fitBounds(mapRouteLine.getBounds(), { padding: [30, 30] });
+                    }
+                }, 100);
+            }
+        };
     }
 }

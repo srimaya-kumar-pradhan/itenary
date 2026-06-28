@@ -12,11 +12,13 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
 from config import settings
-from models import TripRequest
+from models import TripRequest, TranslationRequest, TranslationResponse
+from bhashini import bhashini_service
 from rag import rag_pipeline
 from llm import llm_service
 from hotel_api import hotel_service
 from data_loader import load_all_data
+from geocoding import geocode_itinerary
 
 # Configure logging
 logging.basicConfig(
@@ -55,12 +57,12 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# CORS — allow all origins for development
+# CORS — permit cross-origin requests from frontend origins
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
+    allow_credentials=False,
+    allow_methods=["GET", "POST", "OPTIONS"],
     allow_headers=["*"],
 )
 
@@ -154,6 +156,13 @@ async def generate_itinerary(request: TripRequest):
             hotels=hotels,
         )
 
+        # --- Stage 5b: Geocoding Integration ---
+        try:
+            itinerary = geocode_itinerary(itinerary, request.destination)
+            logger.info("Itinerary geocoding completed successfully.")
+        except Exception as e:
+            logger.error(f"Itinerary geocoding failed: {e}")
+
         # --- Stage 6: Response Normalization & Assembly ---
         # Normalize budget_summary keys (LLM schema vs fallback schema)
         budget_summary = itinerary.get("budget_summary", {})
@@ -218,6 +227,39 @@ async def generate_itinerary(request: TripRequest):
         raise HTTPException(
             status_code=500,
             detail=f"Failed to generate itinerary: {str(e)}",
+        )
+
+
+@app.post("/api/translate", response_model=TranslationResponse)
+async def translate_text(request: TranslationRequest):
+    """
+    Batch translation endpoint.
+    Proxies to Bhashini ULCA API for Indian languages.
+    Returns original text for unsupported languages.
+    """
+    logger.info(
+        f"Translation requested: {request.source_lang} → {request.target_lang}, "
+        f"{len(request.texts)} texts"
+    )
+
+    try:
+        translated = bhashini_service.translate_batch(
+            texts=request.texts,
+            source_lang=request.source_lang,
+            target_lang=request.target_lang,
+        )
+
+        return TranslationResponse(
+            translations=translated,
+            source_lang=request.source_lang,
+            target_lang=request.target_lang,
+        )
+    except Exception as e:
+        logger.error(f"Translation failed: {e}")
+        return TranslationResponse(
+            translations=request.texts,
+            source_lang=request.source_lang,
+            target_lang=request.target_lang,
         )
 
 

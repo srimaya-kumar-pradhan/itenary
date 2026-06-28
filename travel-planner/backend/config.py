@@ -16,6 +16,10 @@ class Settings(BaseSettings):
     openai_api_key: Optional[str] = None
     hotel_api_key: Optional[str] = None
 
+    # Bhashini Translation API
+    bhashini_user_id: str = ""
+    bhashini_api_key: str = ""
+
     # Paths
     vector_db_path: str = "./vector_db/chroma_data"
     dataset_path: str = "./dataset/processed"
