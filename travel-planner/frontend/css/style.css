@@ -2172,3 +2172,368 @@ body.light-mode .time-slot.active-highlight {
         height: 400px;
     }
 }
+
+/* ==============================================================
+   ENHANCED COMPONENTS — Hotel Comparison, Meals, Transport
+   ============================================================== */
+
+/* --- Hotel Comparison --- */
+.hotel-comparison-section {
+    margin-top: var(--space-lg);
+    padding-top: var(--space-lg);
+    border-top: 1px solid rgba(124, 58, 237, 0.15);
+}
+
+.comparison-title {
+    font-family: var(--font-heading);
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: var(--space-md);
+}
+
+.comparison-grid {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-md);
+}
+
+.comparison-card {
+    background: var(--bg-glass);
+    border: 1px solid rgba(124, 58, 237, 0.12);
+    border-radius: var(--radius-md);
+    padding: var(--space-md);
+    transition: border-color 0.2s ease;
+}
+
+.comparison-card:hover {
+    border-color: var(--accent-primary);
+}
+
+.comparison-hotel-header {
+    margin-bottom: var(--space-sm);
+}
+
+.comparison-hotel-name {
+    font-family: var(--font-heading);
+    font-weight: 600;
+    font-size: 0.95rem;
+    color: var(--text-primary);
+}
+
+.comparison-hotel-meta {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    margin-top: 2px;
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+    flex-wrap: wrap;
+}
+
+.savings-badge {
+    background: rgba(16, 185, 129, 0.15);
+    color: var(--success);
+    padding: 2px 8px;
+    border-radius: var(--radius-full);
+    font-size: 0.7rem;
+    font-weight: 600;
+}
+
+.platform-prices {
+    display: flex;
+    gap: var(--space-sm);
+    flex-wrap: wrap;
+    margin-top: var(--space-sm);
+}
+
+.platform-price {
+    flex: 1;
+    min-width: 100px;
+    background: var(--bg-secondary);
+    border-radius: var(--radius-sm);
+    padding: var(--space-sm) var(--space-md);
+    text-align: center;
+    border: 1px solid transparent;
+    transition: all 0.2s ease;
+}
+
+.platform-price.best-deal {
+    border-color: var(--success);
+    background: rgba(16, 185, 129, 0.08);
+}
+
+.platform-name {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    margin-bottom: 4px;
+}
+
+.platform-price-value {
+    font-family: var(--font-heading);
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+.platform-price-value span {
+    font-size: 0.7rem;
+    font-weight: 400;
+    color: var(--text-muted);
+}
+
+.best-badge {
+    background: var(--success);
+    color: white;
+    font-size: 0.65rem;
+    font-weight: 700;
+    padding: 2px 6px;
+    border-radius: var(--radius-full);
+    margin-top: 4px;
+    display: inline-block;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+/* --- Day Cost Breakdown --- */
+.day-cost-breakdown {
+    display: flex;
+    gap: var(--space-md);
+    padding: var(--space-sm) var(--space-md);
+    background: var(--bg-glass);
+    border-radius: var(--radius-sm);
+    margin-bottom: var(--space-md);
+    flex-wrap: wrap;
+}
+
+.day-cost-breakdown span {
+    font-size: 0.78rem;
+    color: var(--text-secondary);
+    white-space: nowrap;
+}
+
+/* --- Meals Section --- */
+.meals-section {
+    margin-top: var(--space-md);
+    padding-top: var(--space-md);
+    border-top: 1px dashed rgba(124, 58, 237, 0.12);
+}
+
+.meals-title, .transport-title {
+    font-family: var(--font-heading);
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: var(--space-sm);
+}
+
+.meals-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.meal-item {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+    padding: 6px var(--space-sm);
+    border-radius: var(--radius-sm);
+    background: var(--bg-glass);
+    font-size: 0.82rem;
+}
+
+.meal-type {
+    font-weight: 600;
+    color: var(--accent-secondary);
+    min-width: 90px;
+}
+
+.meal-restaurant {
+    color: var(--text-primary);
+    flex: 1;
+}
+
+.meal-cuisine {
+    color: var(--text-muted);
+    font-size: 0.75rem;
+}
+
+.meal-cost {
+    font-weight: 600;
+    color: var(--success);
+    min-width: 70px;
+    text-align: right;
+}
+
+/* --- Transport Section --- */
+.transport-section {
+    margin-top: var(--space-md);
+    padding-top: var(--space-md);
+    border-top: 1px dashed rgba(124, 58, 237, 0.12);
+}
+
+.transport-legs {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.transport-leg {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+    padding: 6px var(--space-sm);
+    border-radius: var(--radius-sm);
+    background: var(--bg-glass);
+    font-size: 0.82rem;
+    flex-wrap: wrap;
+}
+
+.transport-route {
+    color: var(--text-primary);
+    flex: 1;
+    min-width: 120px;
+}
+
+.transport-mode {
+    color: var(--accent-secondary);
+    font-weight: 600;
+    min-width: 70px;
+}
+
+.transport-details {
+    color: var(--text-muted);
+    font-size: 0.78rem;
+    min-width: 90px;
+    text-align: right;
+}
+
+/* --- Day Warnings --- */
+.day-warnings {
+    margin-bottom: var(--space-md);
+}
+
+.warning-item, .validation-warning-item, .budget-warning-item {
+    background: rgba(245, 158, 11, 0.08);
+    border: 1px solid rgba(245, 158, 11, 0.2);
+    border-radius: var(--radius-sm);
+    padding: var(--space-sm) var(--space-md);
+    font-size: 0.82rem;
+    color: var(--warning);
+    margin-bottom: 6px;
+}
+
+/* --- Transport Summary Card --- */
+.metro-info-card {
+    background: var(--bg-glass);
+    border: 1px solid rgba(124, 58, 237, 0.12);
+    border-radius: var(--radius-md);
+    padding: var(--space-md);
+    margin-bottom: var(--space-md);
+}
+
+.metro-header {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+    margin-bottom: var(--space-sm);
+}
+
+.metro-icon {
+    font-size: 1.5rem;
+}
+
+.metro-name {
+    font-family: var(--font-heading);
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.metro-details {
+    display: flex;
+    gap: var(--space-md);
+    flex-wrap: wrap;
+    font-size: 0.82rem;
+    color: var(--text-secondary);
+    margin-bottom: var(--space-sm);
+}
+
+.stations-title {
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 4px;
+}
+
+.station-item {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    padding: 2px 0;
+}
+
+.transport-estimate {
+    display: flex;
+    gap: var(--space-lg);
+    padding: var(--space-sm) var(--space-md);
+    background: var(--bg-glass);
+    border-radius: var(--radius-sm);
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    flex-wrap: wrap;
+}
+
+.transport-estimate strong {
+    color: var(--accent-secondary);
+}
+
+/* --- Budget Sub-items --- */
+.budget-meal-breakdown {
+    padding-left: var(--space-md);
+    margin-bottom: var(--space-sm);
+}
+
+.budget-item.sub-item {
+    padding: 2px 0;
+}
+
+.budget-item.sub-item .budget-label {
+    font-size: 0.78rem;
+    color: var(--text-muted);
+}
+
+.budget-item.sub-item .budget-value {
+    font-size: 0.78rem;
+    color: var(--text-secondary);
+}
+
+.budget-warnings {
+    margin-top: var(--space-sm);
+    margin-bottom: var(--space-sm);
+}
+
+/* --- Validation Warnings Card --- */
+.validation-warnings-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+/* --- Map Distance Labels --- */
+.map-distance-label {
+    background: var(--accent-primary);
+    color: white;
+    padding: 2px 8px;
+    border-radius: var(--radius-full);
+    font-size: 0.65rem;
+    font-weight: 700;
+    font-family: var(--font-body);
+    white-space: nowrap;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+}
+
+.distance-label-container {
+    background: transparent !important;
+    border: none !important;
+}

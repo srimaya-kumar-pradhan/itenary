@@ -1,6 +1,7 @@
 """
-LLM Service — Google Gemini integration with 3-tier prompt engineering.
-Generates structured JSON itineraries with budget-aware planning.
+LLM Service — Google Gemini integration with enhanced prompt engineering.
+Generates structured JSON itineraries with location diversity, meal planning,
+transport recommendations, and accurate budget arithmetic.
 Includes a comprehensive fallback generator if the LLM call fails.
 """
 
@@ -50,12 +51,15 @@ class LLMService:
         hotels: List[Dict],
         daily_budget: float,
         num_days: int,
+        budget_allocation: Optional[Dict] = None,
+        transport_info: str = "",
+        meal_budget_info: str = "",
     ) -> str:
         """
         Build production prompt using prompt_templates module.
 
-        Assembles user_request, rag_results, hotel_data, and budget_allocation
-        into the structured template for deterministic JSON output.
+        Assembles user_request, rag_results, hotel_data, budget_allocation,
+        transport info, and meal budgets into the structured template.
         """
         # Assemble user request dict for the template
         user_request = {
@@ -69,37 +73,48 @@ class LLMService:
             "duration_days": num_days,
         }
 
-        # Format hotel data for prompt injection
+        # Format hotel data for prompt injection (with coordinates if available)
         hotel_lines = []
         for h in hotels[:3]:
+            coords_str = ""
+            if h.get("coordinates"):
+                coords_str = (
+                    f", Coords: ({h['coordinates'].get('lat', 'N/A')}, "
+                    f"{h['coordinates'].get('lng', 'N/A')})"
+                )
             hotel_lines.append(
                 f"  - {h['name']}: ₹{h['price_per_night']}/night, "
                 f"Rating: {h.get('rating', 'N/A')}, "
                 f"Location: {h.get('location', 'N/A')}, "
                 f"Amenities: {', '.join(h.get('amenities', []))}"
+                f"{coords_str}"
             )
         hotel_data = "\n".join(hotel_lines) if hotel_lines else "No live hotel data available."
 
-        # Compute budget allocation segments
-        hotel_cost = hotels[0].get("price_per_night", 2000) if hotels else 2000
-        accommodation_total = hotel_cost * num_days
-        remaining = budget - accommodation_total
-
-        budget_allocation = {
-            "accommodation": round(accommodation_total),
-            "food_and_dining": round(remaining * 0.35),
-            "activities_and_entry": round(remaining * 0.40),
-            "transport_and_misc": round(remaining * 0.25),
-        }
+        # Use smart budget allocation if provided, otherwise compute basic one
+        if budget_allocation:
+            prompt_budget = budget_allocation
+        else:
+            hotel_cost = hotels[0].get("price_per_night", 2000) if hotels else 2000
+            accommodation_total = hotel_cost * num_days
+            remaining = budget - accommodation_total
+            prompt_budget = {
+                "accommodation": round(accommodation_total),
+                "food_and_dining": round(remaining * 0.35),
+                "activities_and_entry": round(remaining * 0.40),
+                "transport_and_misc": round(remaining * 0.25),
+            }
 
         # Truncate RAG context to fit token limits
-        rag_results = context[:4000] if context else "No RAG context available."
+        rag_results = context[:6000] if context else "No RAG context available."
 
         return generate_production_prompt(
             user_request=user_request,
             rag_results=rag_results,
             hotel_data=hotel_data,
-            budget_allocation=budget_allocation,
+            budget_allocation=prompt_budget,
+            transport_info=transport_info,
+            meal_budget_info=meal_budget_info,
         )
 
     def generate_itinerary(
@@ -113,10 +128,12 @@ class LLMService:
         accommodation_preference: str,
         context: str,
         hotels: List[Dict],
+        budget_allocation: Optional[Dict] = None,
+        transport_info: str = "",
+        meal_budget_info: str = "",
     ) -> Dict:
         """
         Generate a complete itinerary using Gemini LLM.
-
         Falls back to rule-based generator if LLM fails.
         """
         # Calculate trip parameters
@@ -134,6 +151,9 @@ class LLMService:
                     destination, start_date, end_date, budget,
                     travelers, preferences, accommodation_preference,
                     context, hotels, daily_budget, num_days,
+                    budget_allocation=budget_allocation,
+                    transport_info=transport_info,
+                    meal_budget_info=meal_budget_info,
                 )
 
                 response = self.model.generate_content(
@@ -155,6 +175,8 @@ class LLMService:
 
                 # Validate required fields
                 if "daily_plans" in itinerary and len(itinerary["daily_plans"]) > 0:
+                    # Post-generation validation: check location diversity
+                    itinerary = self._validate_location_diversity(itinerary)
                     logger.info("LLM itinerary generated successfully")
                     return itinerary
                 else:
@@ -172,6 +194,32 @@ class LLMService:
             travelers, preferences, accommodation_preference, hotels,
         )
 
+    def _validate_location_diversity(self, itinerary: Dict) -> Dict:
+        """
+        Post-generation check: warn if same location appears
+        in morning and evening of the same day.
+        """
+        for day in itinerary.get("daily_plans", []):
+            morning_activities = day.get("morning", {}).get("activities", [])
+            evening_activities = day.get("evening", {}).get("activities", [])
+
+            morning_text = " ".join(morning_activities).lower() if morning_activities else ""
+            evening_text = " ".join(evening_activities).lower() if evening_activities else ""
+
+            # Check for overlap in keywords
+            morning_words = set(w for w in morning_text.split() if len(w) > 4)
+            evening_words = set(w for w in evening_text.split() if len(w) > 4)
+            overlap = morning_words & evening_words
+
+            if len(overlap) > 2:  # More than 2 significant words overlap
+                if "warnings" not in day:
+                    day["warnings"] = []
+                day["warnings"].append(
+                    f"Location diversity warning: morning and evening may feature similar locations"
+                )
+
+        return itinerary
+
     def _generate_fallback_itinerary(
         self,
         destination: str,
@@ -184,8 +232,9 @@ class LLMService:
         hotels: List[Dict],
     ) -> Dict:
         """
-        Rule-based fallback itinerary generator.
-        Produces a valid, structured itinerary without LLM.
+        Enhanced rule-based fallback itinerary generator.
+        Produces a valid, structured itinerary with meals, transport,
+        and diverse locations — without LLM.
         """
         start = datetime.strptime(start_date, "%Y-%m-%d")
         end = datetime.strptime(end_date, "%Y-%m-%d")
@@ -206,64 +255,166 @@ class LLMService:
 
         # Calculate remaining daily budget
         remaining_daily = daily_budget - hotel_cost
-        food_daily = remaining_daily * 0.35
+        food_daily = remaining_daily * 0.30
         activity_daily = remaining_daily * 0.45
-        transport_daily = remaining_daily * 0.20
+        transport_daily = remaining_daily * 0.15
+        misc_daily = remaining_daily * 0.10
+
+        # Meal breakdown
+        breakfast_cost = round(food_daily * 0.25)
+        lunch_cost = round(food_daily * 0.40)
+        dinner_cost = round(food_daily * 0.35)
 
         daily_plans = []
+        used_attractions = set()  # Track used attractions for diversity
+
         for day_num in range(1, num_days + 1):
             current_date = start + timedelta(days=day_num - 1)
             attractions = city_data["attractions"]
             restaurants = city_data["restaurants"]
 
-            idx = (day_num - 1) % len(attractions)
+            # Pick 3 DIFFERENT attractions for morning, afternoon, evening
+            morning_idx = (day_num * 3 - 3) % len(attractions)
+            afternoon_idx = (day_num * 3 - 2) % len(attractions)
+            evening_idx = (day_num * 3 - 1) % len(attractions)
+
+            # Ensure they're all different
+            if afternoon_idx == morning_idx:
+                afternoon_idx = (afternoon_idx + 1) % len(attractions)
+            if evening_idx == morning_idx or evening_idx == afternoon_idx:
+                evening_idx = (evening_idx + 2) % len(attractions)
+
+            morning_attraction = attractions[morning_idx]
+            afternoon_attraction = attractions[afternoon_idx]
+            evening_attraction = attractions[evening_idx]
+
             rest_idx = (day_num - 1) % len(restaurants)
 
             morning_cost = round(activity_daily * 0.4)
-            afternoon_cost = round(food_daily * 0.5 + activity_daily * 0.3)
-            evening_cost = round(food_daily * 0.5 + activity_daily * 0.3)
+            afternoon_cost = round(activity_daily * 0.35)
+            evening_cost = round(activity_daily * 0.25)
+
+            transport_leg_cost = round(transport_daily / 3)
+
+            day_meals_cost = breakfast_cost + lunch_cost + dinner_cost
+            day_transport_cost = transport_leg_cost * 3
+            day_activities_cost = morning_cost + afternoon_cost + evening_cost
+            day_total = day_activities_cost + day_meals_cost + day_transport_cost + hotel_cost
 
             day_plan = {
                 "day": day_num,
                 "date": current_date.strftime("%Y-%m-%d"),
-                "theme": city_data["themes"][idx % len(city_data["themes"])],
+                "theme": city_data["themes"][day_num % len(city_data["themes"]) - 1],
                 "morning": {
-                    "activity": f"Visit {attractions[idx]}",
+                    "activity": f"Visit {morning_attraction}",
                     "time": "09:00 - 12:00",
                     "cost": morning_cost,
-                    "description": f"Explore {attractions[idx]}, one of {destination.title()}'s most iconic landmarks. Perfect for photography and cultural immersion.",
+                    "description": (
+                        f"Explore {morning_attraction}, one of {destination.title()}'s "
+                        f"most iconic landmarks. Perfect for photography and cultural immersion."
+                    ),
                 },
                 "afternoon": {
-                    "activity": f"Lunch at {restaurants[rest_idx]} & local exploration",
+                    "activity": f"Lunch at {restaurants[rest_idx]} & visit {afternoon_attraction}",
                     "time": "12:30 - 17:00",
                     "cost": afternoon_cost,
-                    "description": f"Enjoy authentic local cuisine at {restaurants[rest_idx]}, followed by exploring the surrounding area and local markets.",
+                    "description": (
+                        f"Enjoy authentic local cuisine at {restaurants[rest_idx]}, "
+                        f"followed by exploring {afternoon_attraction}."
+                    ),
                 },
                 "evening": {
-                    "activity": f"Evening at {attractions[(idx + 1) % len(attractions)]}",
+                    "activity": f"Evening at {evening_attraction}",
                     "time": "17:30 - 21:00",
                     "cost": evening_cost,
-                    "description": f"Experience the evening ambiance at {attractions[(idx + 1) % len(attractions)]}. End the day with street food and cultural performances.",
+                    "description": (
+                        f"Experience the evening ambiance at {evening_attraction}. "
+                        f"End the day with local street food and cultural performances."
+                    ),
                 },
-                "day_total": morning_cost + afternoon_cost + evening_cost,
+                "meals": [
+                    {
+                        "type": "breakfast",
+                        "restaurant": hotel.get("name", "Hotel restaurant"),
+                        "cuisine": "Continental/Indian",
+                        "estimated_cost": breakfast_cost,
+                    },
+                    {
+                        "type": "lunch",
+                        "restaurant": restaurants[rest_idx],
+                        "cuisine": "Local cuisine",
+                        "estimated_cost": lunch_cost,
+                    },
+                    {
+                        "type": "dinner",
+                        "restaurant": restaurants[(rest_idx + 1) % len(restaurants)],
+                        "cuisine": "Local cuisine",
+                        "estimated_cost": dinner_cost,
+                    },
+                ],
+                "transport": [
+                    {
+                        "from": hotel.get("name", "Hotel"),
+                        "to": morning_attraction,
+                        "mode": "auto",
+                        "cost": transport_leg_cost,
+                        "time_minutes": 20,
+                    },
+                    {
+                        "from": morning_attraction,
+                        "to": afternoon_attraction,
+                        "mode": "auto",
+                        "cost": transport_leg_cost,
+                        "time_minutes": 25,
+                    },
+                    {
+                        "from": afternoon_attraction,
+                        "to": evening_attraction,
+                        "mode": "auto",
+                        "cost": transport_leg_cost,
+                        "time_minutes": 20,
+                    },
+                ],
+                "activities_cost": day_activities_cost,
+                "meals_cost": day_meals_cost,
+                "transport_cost": day_transport_cost,
+                "hotel_cost": hotel_cost,
+                "day_total": day_total,
             }
             daily_plans.append(day_plan)
 
-        # Budget summary
-        activity_total = sum(d["day_total"] for d in daily_plans)
+        # Budget summary — accurate arithmetic
+        total_activities = sum(d["activities_cost"] for d in daily_plans)
+        total_meals = sum(d["meals_cost"] for d in daily_plans)
+        total_transport = sum(d["transport_cost"] for d in daily_plans)
         accommodation_total = hotel_cost * num_days
-        total_estimated = activity_total + accommodation_total
+        total_estimated = total_activities + total_meals + total_transport + accommodation_total
 
         return {
             "destination": destination.title(),
             "daily_plans": daily_plans,
             "budget_summary": {
                 "accommodation_total": accommodation_total,
-                "food_total": round(food_daily * num_days),
-                "activities_total": round(activity_daily * num_days),
-                "transport_total": round(transport_daily * num_days),
-                "miscellaneous": round(budget * 0.05),
+                "accommodation": accommodation_total,
+                "food_total": total_meals,
+                "food_and_dining": total_meals,
+                "activities_total": total_activities,
+                "activities_and_entry": total_activities,
+                "transport_total": total_transport,
+                "transport_and_misc": total_transport,
+                "miscellaneous": round(misc_daily * num_days),
                 "total_estimated": total_estimated,
+            },
+            "cost_verification": {
+                "daily_sum": total_estimated,
+                "allocated_budget": budget,
+                "variance_percentage": round(
+                    ((total_estimated - budget) / budget) * 100, 1
+                ),
+                "status": (
+                    "WITHIN_BUDGET" if total_estimated <= budget * 1.05
+                    else "OVER_BUDGET"
+                ),
             },
             "travel_tips": city_data["tips"],
             "hidden_gems": city_data["hidden_gems"],

@@ -177,6 +177,8 @@ class RAGPipeline:
     ) -> str:
         """
         Build a rich context string by searching across all collections.
+        Enhanced with city-scoped filtering, better deduplication,
+        and result enrichment with coordinates/cost.
 
         Args:
             destination: Target city
@@ -188,11 +190,13 @@ class RAGPipeline:
         """
         context_parts = []
 
-        # Build search queries from destination + preferences
+        # Build diversified search queries targeting different time slots
         queries = [
             f"Top tourist attractions and monuments in {destination}",
             f"Best restaurants and food in {destination}",
             f"Things to do and activities in {destination}",
+            f"Morning sightseeing places in {destination}",
+            f"Evening entertainment and dining in {destination}",
         ]
 
         for pref in preferences:
@@ -203,29 +207,51 @@ class RAGPipeline:
         elif budget > 30000:
             queries.append(f"Luxury experiences in {destination}")
 
-        # Search each collection
+        # Search each collection with city-scoped filtering
         collection_names = ["monuments", "restaurants", "activities"]
         for coll_name in collection_names:
-            for query in queries[:3]:  # Limit queries per collection
-                results = self.semantic_search(query, coll_name, n_results=3)
+            for query in queries[:4]:  # Limit queries per collection
+                results = self.semantic_search(query, coll_name, n_results=5)
                 for r in results:
-                    if r["score"] >= settings.similarity_threshold:
-                        context_parts.append(r["text"])
+                    # Apply stricter relevance threshold
+                    if r["score"] < settings.similarity_threshold:
+                        continue
 
-        # Deduplicate and truncate
-        seen = set()
+                    # City-scoped filtering: only accept results for this destination
+                    metadata = r.get("metadata", {})
+                    result_city = metadata.get("city", "").lower()
+                    if result_city and result_city != destination.lower():
+                        continue
+
+                    # Enrich text with metadata (coordinates, cost, timing)
+                    enriched_text = r["text"]
+                    cost_str = metadata.get("cost", "")
+                    timing_str = metadata.get("timing", "")
+                    if cost_str:
+                        enriched_text += f" [Entry cost: ₹{cost_str}]"
+                    if timing_str:
+                        enriched_text += f" [Hours: {timing_str}]"
+
+                    context_parts.append(enriched_text)
+
+        # Deduplicate by location name (extract first recognizable name)
+        seen_names = set()
         unique_parts = []
         for part in context_parts:
-            key = part[:80]
-            if key not in seen:
-                seen.add(key)
+            # Use first 60 chars as a dedup key, lowered
+            dedup_key = part[:60].lower().strip()
+            if dedup_key not in seen_names:
+                seen_names.add(dedup_key)
                 unique_parts.append(part)
 
-        context = "\n\n".join(unique_parts[: 20])  # Cap at 20 entries
+        context = "\n\n".join(unique_parts[:20])  # Cap at 20 entries
         if len(context) > settings.max_context_length:
             context = context[: settings.max_context_length]
 
-        logger.info(f"Built context: {len(context)} chars, {len(unique_parts)} entries")
+        logger.info(
+            f"Built context for {destination}: {len(context)} chars, "
+            f"{len(unique_parts)} unique entries (from {len(context_parts)} raw)"
+        )
         return context
 
 

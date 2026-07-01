@@ -69,8 +69,42 @@ class TripRequest(BaseModel):
         return v
 
 
+class Coordinates(BaseModel):
+    """Geographic coordinates (WGS84)."""
+    lat: float = Field(ge=-90, le=90)
+    lng: float = Field(ge=-180, le=180)
+
+
+class TransportOption(BaseModel):
+    """Transportation between locations."""
+    mode: str  # metro, auto, taxi, bus, walking
+    cost: float = 0
+    estimated_time_minutes: int = 0
+    distance_km: float = 0
+
+
+class MealPlan(BaseModel):
+    """Meal plan for a time slot."""
+    type: str  # breakfast, lunch, dinner, snacks
+    restaurant: Optional[str] = None
+    cuisine: Optional[str] = None
+    estimated_cost: float = 0
+    coordinates: Optional[Dict[str, float]] = None
+
+
+class PriceComparison(BaseModel):
+    """Multi-platform price comparison entry."""
+    platform: str  # booking, agoda, makemytrip
+    price_per_night: float
+    total_price: float = 0
+    currency: str = "INR"
+    taxes_included: bool = True
+    url: Optional[str] = None
+    availability: bool = True
+
+
 class HotelOption(BaseModel):
-    """Hotel recommendation data model."""
+    """Hotel recommendation data model — enhanced with geo and pricing."""
 
     name: str
     rating: float = Field(ge=0, le=5)
@@ -78,6 +112,16 @@ class HotelOption(BaseModel):
     location: str
     amenities: List[str] = []
     booking_link: Optional[str] = None
+    # Enhanced fields (all optional for backward compatibility)
+    coordinates: Optional[Dict[str, float]] = None
+    price_comparisons: Optional[List[Dict]] = None
+    best_price: Optional[float] = None
+    best_platform: Optional[str] = None
+    average_price: Optional[float] = None
+    savings: Optional[float] = None
+    savings_percentage: Optional[float] = None
+    booking_links: Optional[Dict[str, str]] = None
+    tier: Optional[str] = None
 
 
 class ActivityRecommendation(BaseModel):
@@ -92,7 +136,7 @@ class ActivityRecommendation(BaseModel):
 
 
 class DayPlan(BaseModel):
-    """Single day itinerary plan."""
+    """Single day itinerary plan — enhanced with meals, transport."""
 
     day: int
     date: str
@@ -102,10 +146,18 @@ class DayPlan(BaseModel):
     evening: Dict = {}
     hotel: Optional[Dict] = None
     day_total: float = 0
+    # Enhanced fields
+    meals: Optional[List[Dict]] = None
+    transport: Optional[List[Dict]] = None
+    activities_cost: Optional[float] = None
+    meals_cost: Optional[float] = None
+    transport_cost: Optional[float] = None
+    hotel_cost: Optional[float] = None
+    warnings: Optional[List[str]] = None
 
 
 class ItineraryResponse(BaseModel):
-    """Complete itinerary response."""
+    """Complete itinerary response — enhanced with all 11-issue fixes."""
 
     destination: str
     duration_days: int
@@ -118,3 +170,9 @@ class ItineraryResponse(BaseModel):
     emergency_contacts: Dict[str, str] = {}
     hidden_gems: List[Dict] = []
     disclaimer: str = "Costs are estimated and may vary based on season and availability."
+    # Enhanced fields
+    budget_detailed: Optional[Dict] = None
+    budget_status: Optional[str] = None
+    budget_variance_percentage: Optional[float] = None
+    transport_summary: Optional[Dict] = None
+    hotel_comparison: Optional[List[Dict]] = None

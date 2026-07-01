@@ -1,6 +1,7 @@
 /**
  * AI Travel Planner — Frontend JavaScript
- * Handles form submission, API calls, loading states, and result rendering.
+ * Enhanced with hotel comparison, meal planning, transport info,
+ * and interactive map with route visualization.
  */
 
 const API_BASE_URL = 'http://localhost:8000';
@@ -203,14 +204,17 @@ function renderItinerary(response) {
     // Summary Cards
     renderSummaryCards(summary, data);
 
-    // Hotel
-    renderHotel(summary, data);
+    // Hotel with comparison
+    renderHotel(summary, data, response.hotel_comparison);
 
-    // Daily Plans
+    // Daily Plans (enhanced with meals & transport)
     renderDailyPlans(data.daily_plans || []);
 
-    // Budget Breakdown
-    renderBudgetBreakdown(data.budget_summary || {}, summary.total_budget);
+    // Budget Breakdown (enhanced with detailed allocation)
+    renderBudgetBreakdown(data.budget_summary || {}, summary.total_budget, response.budget_detailed);
+
+    // Transport Summary
+    renderTransportSummary(response.transport_summary);
 
     // Hidden Gems
     renderHiddenGems(data.hidden_gems || []);
@@ -220,6 +224,9 @@ function renderItinerary(response) {
 
     // Emergency Contacts
     renderEmergencyContacts(data.emergency_contacts || {});
+
+    // Validation Warnings
+    renderValidationWarnings(response.validation_warnings || []);
 
     // Initialize Map and setup responsive mobile triggers
     initOrUpdateMap(data, summary.destination);
@@ -231,6 +238,7 @@ function renderItinerary(response) {
 function renderSummaryCards(summary, data) {
     const grid = document.getElementById('summary-grid');
     const estimated = data.budget_summary?.total_estimated || summary.total_estimated_cost || summary.total_budget;
+    const budgetStatus = estimated <= summary.total_budget ? '✅' : '⚠️';
 
     grid.innerHTML = `
         <div class="summary-card">
@@ -240,7 +248,7 @@ function renderSummaryCards(summary, data) {
         </div>
         <div class="summary-card">
             <span class="card-icon">📊</span>
-            <div class="card-value">₹${formatNumber(estimated)}</div>
+            <div class="card-value">₹${formatNumber(estimated)} ${budgetStatus}</div>
             <div class="card-label">Est. Cost</div>
         </div>
         <div class="summary-card">
@@ -256,7 +264,7 @@ function renderSummaryCards(summary, data) {
     `;
 }
 
-function renderHotel(summary, data) {
+function renderHotel(summary, data, hotelComparison) {
     const container = document.getElementById('hotel-details');
     // Handle both `hotels` (fallback) and `hotels_summary` (LLM) keys
     const hotelsList = data.hotels || data.hotels_summary || [];
@@ -268,6 +276,41 @@ function renderHotel(summary, data) {
     const amenities = hotel.amenities || [];
 
     let amenitiesHTML = amenities.map(a => `<span class="amenity-tag">${a}</span>`).join('');
+
+    // Hotel comparison section
+    let comparisonHTML = '';
+    if (hotelComparison && hotelComparison.length > 0) {
+        comparisonHTML = `
+            <div class="hotel-comparison-section">
+                <h4 class="comparison-title">🔍 Price Comparison Across Platforms</h4>
+                <div class="comparison-grid">
+                    ${hotelComparison.slice(0, 3).map(h => {
+                        const comparisons = h.price_comparisons || [];
+                        const platformCards = comparisons.map(pc => `
+                            <div class="platform-price ${pc.platform === h.best_platform ? 'best-deal' : ''}">
+                                <div class="platform-name">${getPlatformIcon(pc.platform)} ${pc.platform.charAt(0).toUpperCase() + pc.platform.slice(1)}</div>
+                                <div class="platform-price-value">₹${formatNumber(pc.price_per_night)}<span>/night</span></div>
+                                ${pc.platform === h.best_platform ? '<div class="best-badge">Best Deal</div>' : ''}
+                            </div>
+                        `).join('');
+
+                        return `
+                            <div class="comparison-card">
+                                <div class="comparison-hotel-header">
+                                    <div class="comparison-hotel-name">${h.name}</div>
+                                    <div class="comparison-hotel-meta">
+                                        ⭐ ${h.rating || 'N/A'} · 📍 ${h.location || 'N/A'}
+                                        ${h.savings > 0 ? `<span class="savings-badge">Save ₹${formatNumber(h.savings)} (${h.savings_percentage}%)</span>` : ''}
+                                    </div>
+                                </div>
+                                <div class="platform-prices">${platformCards}</div>
+                            </div>
+                        `;
+                    }).join('')}
+                </div>
+            </div>
+        `;
+    }
 
     container.innerHTML = `
         <div class="hotel-info">
@@ -282,7 +325,17 @@ function renderHotel(summary, data) {
             </div>
         </div>
         ${amenitiesHTML ? `<div class="hotel-amenities">${amenitiesHTML}</div>` : ''}
+        ${comparisonHTML}
     `;
+}
+
+function getPlatformIcon(platform) {
+    const icons = {
+        booking: '🅱️',
+        agoda: '🅰️',
+        makemytrip: '✈️',
+    };
+    return icons[platform] || '🏨';
 }
 
 function renderDailyPlans(dailyPlans) {
@@ -297,6 +350,71 @@ function renderDailyPlans(dailyPlans) {
         const morning = day.morning || {};
         const afternoon = day.afternoon || {};
         const evening = day.evening || {};
+        const meals = day.meals || [];
+        const transport = day.transport || [];
+        const warnings = day.warnings || [];
+
+        // Build cost breakdown line
+        let costBreakdown = '';
+        if (day.activities_cost !== undefined) {
+            costBreakdown = `
+                <div class="day-cost-breakdown">
+                    <span title="Activities">🎯 ₹${formatNumber(day.activities_cost || 0)}</span>
+                    <span title="Meals">🍽️ ₹${formatNumber(day.meals_cost || 0)}</span>
+                    <span title="Transport">🚗 ₹${formatNumber(day.transport_cost || 0)}</span>
+                    <span title="Hotel">🏨 ₹${formatNumber(day.hotel_cost || 0)}</span>
+                </div>
+            `;
+        }
+
+        // Build meals section
+        let mealsHTML = '';
+        if (meals.length > 0) {
+            mealsHTML = `
+                <div class="meals-section">
+                    <div class="meals-title">🍽️ Meals</div>
+                    <div class="meals-grid">
+                        ${meals.map(m => `
+                            <div class="meal-item meal-${m.type}">
+                                <span class="meal-type">${getMealIcon(m.type)} ${m.type.charAt(0).toUpperCase() + m.type.slice(1)}</span>
+                                <span class="meal-restaurant">${m.restaurant || 'Local restaurant'}</span>
+                                <span class="meal-cuisine">${m.cuisine || ''}</span>
+                                <span class="meal-cost">₹${formatNumber(m.estimated_cost || 0)}</span>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            `;
+        }
+
+        // Build transport section
+        let transportHTML = '';
+        if (transport.length > 0) {
+            transportHTML = `
+                <div class="transport-section">
+                    <div class="transport-title">🚌 Getting Around</div>
+                    <div class="transport-legs">
+                        ${transport.map(t => `
+                            <div class="transport-leg">
+                                <span class="transport-route">${t.from || '📍'} → ${t.to || '📍'}</span>
+                                <span class="transport-mode">${getTransportIcon(t.mode)} ${(t.mode || 'auto').charAt(0).toUpperCase() + (t.mode || 'auto').slice(1)}</span>
+                                <span class="transport-details">₹${formatNumber(t.cost || 0)} · ${t.time_minutes || '~20'}min</span>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            `;
+        }
+
+        // Build warnings section
+        let warningsHTML = '';
+        if (warnings.length > 0) {
+            warningsHTML = `
+                <div class="day-warnings">
+                    ${warnings.map(w => `<div class="warning-item">⚠️ ${w}</div>`).join('')}
+                </div>
+            `;
+        }
 
         dayCard.innerHTML = `
             <div class="day-header" onclick="this.parentElement.querySelector('.day-body').classList.toggle('collapsed')">
@@ -310,14 +428,28 @@ function renderDailyPlans(dailyPlans) {
                 <div class="day-cost">₹${formatNumber(day.day_total || 0)}</div>
             </div>
             <div class="day-body">
+                ${costBreakdown}
+                ${warningsHTML}
                 ${renderTimeSlot('morning', 'Morning', morning)}
                 ${renderTimeSlot('afternoon', 'Afternoon', afternoon)}
                 ${renderTimeSlot('evening', 'Evening', evening)}
+                ${mealsHTML}
+                ${transportHTML}
             </div>
         `;
 
         container.appendChild(dayCard);
     });
+}
+
+function getMealIcon(type) {
+    const icons = { breakfast: '🥐', lunch: '🍛', dinner: '🍽️', snacks: '🍿' };
+    return icons[type] || '🍴';
+}
+
+function getTransportIcon(mode) {
+    const icons = { metro: '🚇', auto: '🛺', taxi: '🚕', bus: '🚌', walking: '🚶' };
+    return icons[mode] || '🚗';
 }
 
 function renderTimeSlot(period, label, slot) {
@@ -358,7 +490,7 @@ function renderTimeSlot(period, label, slot) {
     `;
 }
 
-function renderBudgetBreakdown(budgetSummary, totalBudget) {
+function renderBudgetBreakdown(budgetSummary, totalBudget, budgetDetailed) {
     const container = document.getElementById('budget-breakdown');
 
     const items = [
@@ -384,6 +516,36 @@ function renderBudgetBreakdown(budgetSummary, totalBudget) {
         )
         .join('');
 
+    // Add meal breakdown if available
+    if (budgetDetailed && budgetDetailed.meals) {
+        const meals = budgetDetailed.meals;
+        html += `
+            <div class="budget-meal-breakdown">
+                <div class="budget-item sub-item">
+                    <span class="budget-label">  🥐 Breakfast/day</span>
+                    <span class="budget-value">₹${formatNumber(meals.breakfast || 0)}</span>
+                </div>
+                <div class="budget-item sub-item">
+                    <span class="budget-label">  🍛 Lunch/day</span>
+                    <span class="budget-value">₹${formatNumber(meals.lunch || 0)}</span>
+                </div>
+                <div class="budget-item sub-item">
+                    <span class="budget-label">  🍽️ Dinner/day</span>
+                    <span class="budget-value">₹${formatNumber(meals.dinner || 0)}</span>
+                </div>
+            </div>
+        `;
+    }
+
+    // Budget warnings
+    if (budgetDetailed && budgetDetailed.warnings && budgetDetailed.warnings.length > 0) {
+        html += `
+            <div class="budget-warnings">
+                ${budgetDetailed.warnings.map(w => `<div class="budget-warning-item">⚠️ ${w}</div>`).join('')}
+            </div>
+        `;
+    }
+
     html += `
         <div class="budget-item total">
             <span class="budget-label">Total Estimated</span>
@@ -403,6 +565,71 @@ function renderBudgetBreakdown(budgetSummary, totalBudget) {
     `;
 
     container.innerHTML = html;
+}
+
+function renderTransportSummary(transportSummary) {
+    const container = document.getElementById('transport-summary');
+    if (!container) return;
+
+    if (!transportSummary) {
+        container.style.display = 'none';
+        return;
+    }
+
+    container.style.display = 'block';
+    let html = '';
+
+    if (transportSummary.has_metro && transportSummary.metro_info) {
+        const metro = transportSummary.metro_info;
+        html += `
+            <div class="metro-info-card">
+                <div class="metro-header">
+                    <span class="metro-icon">🚇</span>
+                    <span class="metro-name">${metro.name}</span>
+                </div>
+                <div class="metro-details">
+                    <span>🕐 ${metro.hours}</span>
+                    <span>🎫 Day Pass: ₹${metro.day_pass}</span>
+                    <span>📱 ${metro.app}</span>
+                </div>
+                <div class="metro-stations">
+                    <div class="stations-title">Key Tourist Stations:</div>
+                    ${metro.key_tourist_stations.slice(0, 4).map(s => 
+                        `<div class="station-item">🚉 ${s}</div>`
+                    ).join('')}
+                </div>
+            </div>
+        `;
+    }
+
+    if (transportSummary.daily_estimate) {
+        const est = transportSummary.daily_estimate;
+        html += `
+            <div class="transport-estimate">
+                <span>Daily transport estimate: <strong>₹${formatNumber(est.total_daily_cost)}</strong></span>
+                <span>Recommended mode: <strong>${getTransportIcon(est.recommended_mode)} ${est.recommended_mode}</strong></span>
+            </div>
+        `;
+    }
+
+    container.innerHTML = html;
+}
+
+function renderValidationWarnings(warnings) {
+    const container = document.getElementById('validation-warnings');
+    if (!container) return;
+
+    if (!warnings || warnings.length === 0) {
+        container.style.display = 'none';
+        return;
+    }
+
+    container.style.display = 'block';
+    container.innerHTML = `
+        <div class="validation-warnings-list">
+            ${warnings.map(w => `<div class="validation-warning-item">⚠️ ${w}</div>`).join('')}
+        </div>
+    `;
 }
 
 function renderHiddenGems(gems) {
@@ -496,7 +723,7 @@ function formatDate(dateStr) {
 }
 
 // ==============================================================
-// 14. INTERACTIVE GEOMETRIC MAP INTEGRATION (LEAFLET ENGINE)
+// INTERACTIVE GEOMETRIC MAP INTEGRATION (LEAFLET ENGINE)
 // ==============================================================
 
 let itineraryMap = null;
@@ -577,14 +804,15 @@ function setupItineraryMap(data, destination) {
                 if (slot && slot.coordinates && slot.coordinates.lat && slot.coordinates.lng) {
                     const lat = slot.coordinates.lat;
                     const lng = slot.coordinates.lng;
-                    const name = slot.activity || slot.name || "Destination Stop";
+                    const name = slot.activity || (slot.activities && slot.activities[0]) || slot.name || "Destination Stop";
                     const cost = slot.cost || slot.estimated_cost || 0;
                     const time = slot.time || slot.timing || "";
                     const periodName = period.charAt(0).toUpperCase() + period.slice(1);
+                    const dayNum = day.day;
 
-                    pathCoordinates.push({ lat, lng, name, periodName, time, cost });
+                    pathCoordinates.push({ lat, lng, name, periodName, time, cost, dayNum });
 
-                    // Create custom geometric SVG marker (solid diamond shape with stop sequence index)
+                    // Create custom geometric SVG marker
                     const markerHtml = `
                         <div class="custom-map-marker">
                             <div class="marker-pin">
@@ -602,7 +830,7 @@ function setupItineraryMap(data, destination) {
 
                     const popupContent = `
                         <div style="font-family: var(--font-body); padding: 5px;">
-                            <strong style="color: var(--accent-primary); font-size: 13px; font-weight:700;">${name}</strong><br/>
+                            <strong style="color: var(--accent-primary); font-size: 13px; font-weight:700;">Day ${dayNum}: ${name}</strong><br/>
                             <span style="font-size: 11px; color: var(--text-muted);">${periodName} Slot ${time ? `(${time})` : ''}</span><br/>
                             <span style="font-size: 11px; font-weight: 600; color: var(--success);">Cost: ₹${formatNumber(cost)}</span>
                         </div>
@@ -619,19 +847,43 @@ function setupItineraryMap(data, destination) {
         });
     }
 
-    // 5. Connect chronological stops using a sleek, dashed GeoJSON-style line
+    // 5. Connect chronological stops with route line and distance labels
     if (pathCoordinates.length > 1) {
-        const latlngs = pathCoordinates.map(pt => [pt.lat, pt.pt_lng || pt.lng]);
+        const latlngs = pathCoordinates.map(pt => [pt.lat, pt.lng]);
         
         mapRouteLine = L.polyline(latlngs, {
-            color: '#7c3aed',         // Application purple accent
+            color: '#7c3aed',
             weight: 4,
             opacity: 0.85,
-            dashArray: '6, 8',       // Sleek dashed routing look
+            dashArray: '6, 8',
             lineJoin: 'round'
         }).addTo(itineraryMap);
 
-        // 6. Smoothly pan and adjust viewport bounds to perfectly frame all nodes
+        // Add distance labels between consecutive stops
+        for (let i = 0; i < pathCoordinates.length - 1; i++) {
+            const p1 = pathCoordinates[i];
+            const p2 = pathCoordinates[i + 1];
+            const midLat = (p1.lat + p2.lat) / 2;
+            const midLng = (p1.lng + p2.lng) / 2;
+            
+            // Calculate distance using Haversine
+            const dist = haversineDistance(p1.lat, p1.lng, p2.lat, p2.lng);
+            
+            if (dist > 0.3) { // Only show for distances > 300m
+                const distLabel = L.divIcon({
+                    html: `<div class="map-distance-label">${dist.toFixed(1)} km</div>`,
+                    className: 'distance-label-container',
+                    iconSize: [60, 20],
+                    iconAnchor: [30, 10]
+                });
+
+                const distMarker = L.marker([midLat, midLng], { icon: distLabel })
+                    .addTo(itineraryMap);
+                mapMarkers.push(distMarker);
+            }
+        }
+
+        // 6. Fit viewport bounds
         itineraryMap.fitBounds(mapRouteLine.getBounds(), {
             padding: [40, 40],
             animate: true,
@@ -648,8 +900,22 @@ function setupItineraryMap(data, destination) {
         itineraryMap.setView(defaultCenter, 10);
     }
 
-    // 7. Wire timeline cards click events to pan/fly and highlight markers
+    // 7. Wire timeline card click events
     wireTimelineInteractions();
+}
+
+/**
+ * Haversine distance calculation (client-side for map labels)
+ */
+function haversineDistance(lat1, lon1, lat2, lon2) {
+    const R = 6371;
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLon = (lon2 - lon1) * Math.PI / 180;
+    const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+              Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+              Math.sin(dLon/2) * Math.sin(dLon/2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    return R * c;
 }
 
 /**
@@ -703,6 +969,7 @@ function wireTimelineInteractions() {
 
                 // Find corresponding map marker and open its descriptive popup
                 const matchMarker = mapMarkers.find(marker => {
+                    if (!marker.getLatLng) return false;
                     const pos = marker.getLatLng();
                     return Math.abs(pos.lat - lat) < 0.0001 && Math.abs(pos.lng - lng) < 0.0001;
                 });

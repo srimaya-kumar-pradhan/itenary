@@ -28,12 +28,12 @@ class Settings(BaseSettings):
     embedding_model: str = "sentence-transformers/all-MiniLM-L6-v2"
     llm_provider: str = "gemini"
     temperature: float = 0.7
-    max_tokens: int = 2048
+    max_tokens: int = 8192
 
     # RAG Configuration
     vector_search_k: int = 5
     max_context_length: int = 8000
-    similarity_threshold: float = 0.3
+    similarity_threshold: float = 0.6
 
     # Execution
     debug: bool = True
