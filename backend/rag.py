@@ -1,130 +1,124 @@
 """
-RAG Pipeline — ChromaDB vector store + SentenceTransformer embeddings.
+RAG Pipeline — In-memory vector store + Gemini API embeddings.
 Handles document ingestion, semantic search, and context assembly for LLM prompts.
 """
 
 import logging
 from typing import List, Dict, Optional
-
-import chromadb
-from chromadb import EmbeddingFunction, Documents, Embeddings
+import google.generativeai as genai
 
 from config import settings
 
 logger = logging.getLogger(__name__)
 
 
-class GeminiEmbeddingFunction(EmbeddingFunction):
-    """Custom embedding function using Google Gemini API."""
+def cosine_similarity(v1: List[float], v2: List[float]) -> float:
+    """Calculate the cosine similarity between two vectors."""
+    dot_product = sum(x * y for x, y in zip(v1, v2))
+    norm_v1 = sum(x * x for x in v1) ** 0.5
+    norm_v2 = sum(x * x for x in v2) ** 0.5
+    if norm_v1 == 0 or norm_v2 == 0:
+        return 0.0
+    return dot_product / (norm_v1 * norm_v2)
 
-    def __call__(self, input: Documents) -> Embeddings:
+
+class RAGPipeline:
+    """Production-grade in-memory RAG system using Gemini Embeddings API."""
+
+    def __init__(self):
+        """Initialize in-memory structures."""
+        self.collections: Dict[str, List[Dict]] = {}
+        self._initialized = False
+
+    def initialize(self):
+        """Initialize connection/configurations for Gemini."""
+        if self._initialized:
+            return
+        try:
+            logger.info("Initializing in-memory RAG pipeline with Gemini Embeddings API...")
+            # Verify if API key is configured
+            if settings.gemini_api_key and settings.gemini_api_key != "your_gemini_api_key_here":
+                genai.configure(api_key=settings.gemini_api_key)
+            self._initialized = True
+            logger.info("RAG pipeline initialized successfully")
+        except Exception as e:
+            logger.error(f"RAG initialization failed: {e}")
+            raise
+
+    def get_embedding(self, text: str) -> List[float]:
+        """Fetch embedding for a single text using Gemini API."""
         if not settings.gemini_api_key or settings.gemini_api_key == "your_gemini_api_key_here":
             logger.warning("Gemini API key not configured for embeddings. Using dummy zero embeddings.")
-            return [[0.0] * 768 for _ in input]
+            return [0.0] * 768
         try:
             import google.generativeai as genai
             genai.configure(api_key=settings.gemini_api_key)
             response = genai.embed_content(
                 model="models/text-embedding-004",
-                content=input,
+                content=text,
+                task_type="retrieval_query"
+            )
+            return response['embedding']
+        except Exception as e:
+            logger.error(f"Gemini embedding generation failed: {e}")
+            return [0.0] * 768
+
+    def get_embeddings_batch(self, texts: List[str]) -> List[List[float]]:
+        """Fetch embeddings for a batch of texts using Gemini API."""
+        if not settings.gemini_api_key or settings.gemini_api_key == "your_gemini_api_key_here":
+            return [[0.0] * 768 for _ in texts]
+        try:
+            import google.generativeai as genai
+            genai.configure(api_key=settings.gemini_api_key)
+            response = genai.embed_content(
+                model="models/text-embedding-004",
+                content=texts,
                 task_type="retrieval_document"
             )
             return response['embedding']
         except Exception as e:
-            logger.error(f"Gemini embedding failed: {e}")
-            # Fallback to zero vectors
-            return [[0.0] * 768 for _ in input]
-
-
-class RAGPipeline:
-    """Production-grade RAG system for travel data retrieval."""
-
-    def __init__(self):
-        """Initialize RAG components with lazy loading."""
-        self.embedding_function: Optional[GeminiEmbeddingFunction] = None
-        self.chroma_client: Optional[chromadb.ClientAPI] = None
-        self.collections: Dict = {}
-        self._initialized = False
-
-    def initialize(self):
-        """Initialize embedding model and vector database."""
-        if self._initialized:
-            return
-
-        try:
-            logger.info("Initializing Gemini Embedding Function...")
-            self.embedding_function = GeminiEmbeddingFunction()
-
-            logger.info("Initializing in-memory Ephemeral ChromaDB...")
-            self.chroma_client = chromadb.EphemeralClient()
-
-            self._initialized = True
-            logger.info("RAG pipeline initialized successfully")
-
-        except Exception as e:
-            logger.error(f"RAG initialization failed: {e}")
-            raise
+            logger.error(f"Gemini batch embedding generation failed: {e}")
+            return [[0.0] * 768 for _ in texts]
 
     def ingest_documents(self, collection_name: str, documents: List[Dict]):
         """
-        Ingest documents into a named ChromaDB collection.
-
-        Args:
-            collection_name: e.g. 'monuments', 'restaurants', 'activities'
-            documents: List of dicts with 'id', 'text', and optional 'metadata'
+        Ingest documents, calculate embeddings, and store them in memory.
         """
         if not self._initialized:
             self.initialize()
 
         try:
-            collection = self.chroma_client.get_or_create_collection(
-                name=collection_name,
-                metadata={"hnsw:space": "cosine"},
-                embedding_function=self.embedding_function,
-            )
+            if collection_name not in self.collections:
+                self.collections[collection_name] = []
 
-            # Skip if already populated
-            existing_count = collection.count()
-            if existing_count >= len(documents):
-                logger.info(
-                    f"Collection '{collection_name}' already has {existing_count} docs, skipping ingestion"
-                )
-                self.collections[collection_name] = collection
+            existing_ids = {doc["id"] for doc in self.collections[collection_name]}
+            new_docs = [doc for doc in documents if doc["id"] not in existing_ids]
+
+            if not new_docs:
+                logger.info(f"Collection '{collection_name}' already populated, skipping ingestion")
                 return
 
-            ids = [doc["id"] for doc in documents]
-            texts = [doc["text"] for doc in documents]
-            metadatas = [doc.get("metadata", {}) for doc in documents]
-
-            # Convert metadata values to strings (ChromaDB requirement)
-            clean_metadatas = []
-            for m in metadatas:
-                clean = {}
-                for k, v in m.items():
-                    if isinstance(v, (list, dict)):
-                        import json
-                        clean[k] = json.dumps(v)
-                    else:
-                        clean[k] = str(v)
-                clean_metadatas.append(clean)
-
-            # Batch upsert (ChromaDB handles dedup by ID)
+            logger.info(f"Generating embeddings for {len(new_docs)} new documents in '{collection_name}'...")
+            texts = [doc["text"] for doc in new_docs]
+            
+            # Embed in batches of 100 to avoid request size limits
             batch_size = 100
-            for i in range(0, len(ids), batch_size):
-                batch_ids = ids[i : i + batch_size]
-                batch_texts = texts[i : i + batch_size]
-                batch_meta = clean_metadatas[i : i + batch_size]
+            embeddings = []
+            for i in range(0, len(texts), batch_size):
+                batch_texts = texts[i:i+batch_size]
+                batch_embeddings = self.get_embeddings_batch(batch_texts)
+                embeddings.extend(batch_embeddings)
 
-                collection.upsert(
-                    ids=batch_ids,
-                    documents=batch_texts,
-                    metadatas=batch_meta,
-                )
+            # Store documents with their embeddings
+            for doc, emb in zip(new_docs, embeddings):
+                self.collections[collection_name].append({
+                    "id": doc["id"],
+                    "text": doc["text"],
+                    "metadata": doc.get("metadata", {}),
+                    "embedding": emb
+                })
 
-            self.collections[collection_name] = collection
-            logger.info(
-                f"Ingested {len(documents)} documents into '{collection_name}'"
-            )
+            logger.info(f"Ingested {len(new_docs)} documents into '{collection_name}' successfully")
 
         except Exception as e:
             logger.error(f"Ingestion failed for '{collection_name}': {e}")
@@ -134,61 +128,36 @@ class RAGPipeline:
         self, query: str, collection_name: str, n_results: int = 5
     ) -> List[Dict]:
         """
-        Perform semantic search against a collection.
-
-        Args:
-            query: Natural language search query
-            collection_name: Which collection to search
-            n_results: Number of results to return
-
-        Returns:
-            List of matching documents with scores
+        Perform semantic search against in-memory collection using cosine similarity.
         """
         if not self._initialized:
             self.initialize()
 
         try:
-            collection = self.collections.get(collection_name)
-            if collection is None:
-                collection = self.chroma_client.get_or_create_collection(
-                    name=collection_name,
-                    embedding_function=self.embedding_function,
-                )
-                self.collections[collection_name] = collection
-
-            if collection.count() == 0:
-                logger.warning(f"Collection '{collection_name}' is empty")
+            docs = self.collections.get(collection_name, [])
+            if not docs:
+                logger.warning(f"Collection '{collection_name}' is empty or does not exist")
                 return []
 
-            results = collection.query(
-                query_texts=[query],
-                n_results=min(n_results, collection.count()),
-            )
+            # Get query embedding
+            query_emb = self.get_embedding(query)
 
-            formatted = []
-            if results and results["documents"]:
-                for i, doc in enumerate(results["documents"][0]):
-                    score = 0.0
-                    if results.get("distances") and results["distances"][0]:
-                        # ChromaDB cosine distance: lower = more similar
-                        score = 1.0 - results["distances"][0][i]
+            # Calculate similarity for each document
+            scored_docs = []
+            for doc in docs:
+                sim = cosine_similarity(query_emb, doc["embedding"])
+                scored_docs.append({
+                    "text": doc["text"],
+                    "score": round(sim, 4),
+                    "metadata": doc["metadata"]
+                })
 
-                    metadata = {}
-                    if results.get("metadatas") and results["metadatas"][0]:
-                        metadata = results["metadatas"][0][i]
+            # Sort by score descending and return top n_results
+            scored_docs.sort(key=lambda x: x["score"], reverse=True)
+            results = scored_docs[:n_results]
 
-                    formatted.append(
-                        {
-                            "text": doc,
-                            "score": round(score, 4),
-                            "metadata": metadata,
-                        }
-                    )
-
-            logger.info(
-                f"Search '{query}' in '{collection_name}': {len(formatted)} results"
-            )
-            return formatted
+            logger.info(f"Search '{query}' in '{collection_name}': {len(results)} results")
+            return results
 
         except Exception as e:
             logger.error(f"Semantic search failed: {e}")
