@@ -17,7 +17,7 @@ class I18nManager {
         this.translations = typeof TRANSLATIONS !== 'undefined' ? TRANSLATIONS : {};
         this.originalTexts = new Map();
         this.observer = null;
-        this.API_BASE = 'http://localhost:8000';
+        this.API_BASE = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.location.protocol === 'file:' ? 'http://localhost:8000' : '';
         this._bhashiniCache = new Map();
         this._transitioning = false;
     }

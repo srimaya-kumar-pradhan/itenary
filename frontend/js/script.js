@@ -4,7 +4,7 @@
  * and interactive map with route visualization.
  */
 
-const API_BASE_URL = 'http://localhost:8000';
+const API_BASE_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.location.protocol === 'file:' ? 'http://localhost:8000' : '';
 
 // --- DOM References ---
 const tripForm = document.getElementById('trip-form');
