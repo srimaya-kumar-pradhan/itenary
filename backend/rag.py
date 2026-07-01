@@ -7,11 +7,33 @@ import logging
 from typing import List, Dict, Optional
 
 import chromadb
-from sentence_transformers import SentenceTransformer
+from chromadb import EmbeddingFunction, Documents, Embeddings
 
 from config import settings
 
 logger = logging.getLogger(__name__)
+
+
+class GeminiEmbeddingFunction(EmbeddingFunction):
+    """Custom embedding function using Google Gemini API."""
+
+    def __call__(self, input: Documents) -> Embeddings:
+        if not settings.gemini_api_key or settings.gemini_api_key == "your_gemini_api_key_here":
+            logger.warning("Gemini API key not configured for embeddings. Using dummy zero embeddings.")
+            return [[0.0] * 768 for _ in input]
+        try:
+            import google.generativeai as genai
+            genai.configure(api_key=settings.gemini_api_key)
+            response = genai.embed_content(
+                model="models/text-embedding-004",
+                content=input,
+                task_type="retrieval_document"
+            )
+            return response['embedding']
+        except Exception as e:
+            logger.error(f"Gemini embedding failed: {e}")
+            # Fallback to zero vectors
+            return [[0.0] * 768 for _ in input]
 
 
 class RAGPipeline:
@@ -19,7 +41,7 @@ class RAGPipeline:
 
     def __init__(self):
         """Initialize RAG components with lazy loading."""
-        self.embedding_model: Optional[SentenceTransformer] = None
+        self.embedding_function: Optional[GeminiEmbeddingFunction] = None
         self.chroma_client: Optional[chromadb.ClientAPI] = None
         self.collections: Dict = {}
         self._initialized = False
@@ -30,13 +52,11 @@ class RAGPipeline:
             return
 
         try:
-            logger.info(f"Loading embedding model: {settings.embedding_model}")
-            self.embedding_model = SentenceTransformer(settings.embedding_model)
+            logger.info("Initializing Gemini Embedding Function...")
+            self.embedding_function = GeminiEmbeddingFunction()
 
-            logger.info(f"Initializing ChromaDB at: {settings.vector_db_path}")
-            self.chroma_client = chromadb.PersistentClient(
-                path=settings.vector_db_path
-            )
+            logger.info("Initializing in-memory Ephemeral ChromaDB...")
+            self.chroma_client = chromadb.EphemeralClient()
 
             self._initialized = True
             logger.info("RAG pipeline initialized successfully")
@@ -60,6 +80,7 @@ class RAGPipeline:
             collection = self.chroma_client.get_or_create_collection(
                 name=collection_name,
                 metadata={"hnsw:space": "cosine"},
+                embedding_function=self.embedding_function,
             )
 
             # Skip if already populated
@@ -130,7 +151,8 @@ class RAGPipeline:
             collection = self.collections.get(collection_name)
             if collection is None:
                 collection = self.chroma_client.get_or_create_collection(
-                    name=collection_name
+                    name=collection_name,
+                    embedding_function=self.embedding_function,
                 )
                 self.collections[collection_name] = collection
 

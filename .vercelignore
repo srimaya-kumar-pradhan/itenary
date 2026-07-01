@@ -1,0 +1,12 @@
+.git
+.gitignore
+.vercel
+backend/venv/
+backend/vector_db/
+travel-planner/
+dataset/
+logs/
+**/__pycache__/
+*.pyc
+.env
+.env.*
